@@ -1,0 +1,33 @@
+services:
+  # Servidor Web y Laravel con PHP oficial
+  app:
+    image: docker.io/library/php:8.2-apache
+    container_name: laravel_app
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html:Z # El modificador :Z es clave en Podman para SELinux/permisos
+    depends_on:
+      - mariadb
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_DATABASE=Umamed
+      - DB_USERNAME=laragon
+      - DB_PASSWORD="S58^6ZAxgdH2o&"
+
+  # Tu instancia de MariaDB
+  mariadb:
+    image: docker.io/library/mariadb:11
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "pickner12."
+      MYSQL_DATABASE: Umamed
+      MYSQL_USER: laragon
+      MYSQL_PASSWORD: "S58^6ZAxgdH2o&"
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mariadb_data:/var/lib/mysql:Z

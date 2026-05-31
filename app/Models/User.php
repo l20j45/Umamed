@@ -6,10 +6,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -18,8 +19,13 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'last_name',
         'email',
         'password',
+        'phone',
+        'avatar',
+        'treatment_start_date',
+
     ];
 
     /**
@@ -43,5 +49,16 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // Relación: Un Usuario (Paciente) tiene muchas Medidas
+    public function medidas()
+    {
+        return $this->hasMany(medidasPaciente::class);
+    }
+
+    public function progressPhotos()
+    {
+        return $this->hasMany(ProgressPhoto::class);
     }
 }

@@ -14,7 +14,11 @@
         "paths": {
             "@/*": ["./resources/js/*"],
             "ziggy-js": ["./vendor/tightenco/ziggy"]
-        }
+        },
+        "types": [
+            "vite/client",
+            "vite-plugin-pwa/client" // <-- Añade esta línea exacta
+        ]
     },
-    "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx", "resources/js/**/*.d.ts"]
+    "include": ["resources/js/**/*.ts", "resources/js/**/*.tsx", "resources/js/**/*.d.ts","vite-env.d.ts"]
 }

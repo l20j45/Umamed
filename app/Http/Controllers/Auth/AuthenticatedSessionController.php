@@ -29,11 +29,25 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
 
-        $request->session()->regenerate();
+    $request->authenticate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+
+    $request->session()->regenerate();
+
+
+    $user = auth()->user();
+
+
+    if ($user->hasRole('paciente')) {
+        return redirect()->route('patient.portal');
+    }
+
+    if ($user->hasRole('bariatra')) {
+        return redirect()->route('dashboard'); // Tu ruta del panel médico
+    }
+
+    return redirect()->intended(route('dashboard', absolute: false));
     }
 
     /**
