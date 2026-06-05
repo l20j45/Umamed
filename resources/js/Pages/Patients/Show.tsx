@@ -1,4 +1,4 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout'; // Ajusta la ruta según tu estructura
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
 
 interface Medida {
@@ -15,6 +15,13 @@ interface Medida {
     created_at: string;
 }
 
+interface ProgressPhoto {
+    id: number;
+    path: string;
+    description?: string;
+    created_at: string;
+}
+
 interface ShowProps {
     auth?: {
         user: any;
@@ -23,7 +30,9 @@ interface ShowProps {
         id: number;
         name: string;
         last_name?: string;
+        avatar?: string; // Nombre del archivo guardado en el disco de avatares
         medidas: Medida[];
+        progress_photos?: ProgressPhoto[]; // Relación con sus fotos de evolución
         email?: string;
         phone?: string;
         treatment_start_date?: string;
@@ -77,10 +86,14 @@ export default function Show({ patient }: ShowProps) {
               parseFloat(ultimaMedicion.peso)
             : 0;
 
+    // Resolver la imagen del avatar del paciente
+    const patientAvatarUrl = patient.avatar
+        ? `/user-avatars/${patient.avatar}`
+        : `https://ui-avatars.com/api/?name=${encodeURIComponent(patient.name)}&background=10b981&color=fff`;
+
     return (
         <AuthenticatedLayout
-
-            header={
+            header = {
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
                         Expediente:{' '}
@@ -98,47 +111,61 @@ export default function Show({ patient }: ShowProps) {
 
             <div className="py-12">
                 <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    {/* TARJETA 1: DATOS PERSONALES DEL PACIENTE */}
+                    
+                    {/* TARJETA 1: DATOS PERSONALES DEL PACIENTE + AVATAR */}
                     <div className="overflow-hidden border border-gray-200 bg-white p-6 shadow-sm sm:rounded-lg dark:border-gray-700 dark:bg-gray-800">
-                        <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-400">
-                            Información de Contacto
-                        </h3>
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-4">
-                            <div>
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">
-                                    Correo Electrónico
-                                </span>
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {patient.email}
-                                </span>
+                        <div className="flex flex-col gap-6 md:flex-row md:items-center">
+                            {/* Avatar Dinámico */}
+                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-emerald-500 bg-gray-100 shadow-inner dark:border-emerald-400">
+                                <img
+                                    src={patientAvatarUrl}
+                                    alt={`Foto de ${patient.name}`}
+                                    className="h-full w-full object-cover object-center"
+                                />
                             </div>
-                            <div>
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">
-                                    Teléfono Móvil
-                                </span>
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {patient.phone || 'No registrado'}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">
-                                    Inicio de Tratamiento
-                                </span>
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                                    {patient.treatment_start_date
-                                        ? new Date(
-                                            patient.treatment_start_date,
-                                        ).toLocaleDateString()
-                                        : 'No asignado'}
-                                </span>
-                            </div>
-                            <div>
-                                <span className="block text-xs text-gray-500 dark:text-gray-400">
-                                    Total de Mediciones
-                                </span>
-                                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                    {totalConsultas} visitas
-                                </span>
+
+                            <div className="w-full">
+                                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-400">
+                                    Información de Contacto
+                                </h3>
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-4">
+                                    <div>
+                                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                            Correo Electrónico
+                                        </span>
+                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            {patient.email}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                            Teléfono Móvil
+                                        </span>
+                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            {patient.phone || 'No registrado'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                            Inicio de Tratamiento
+                                        </span>
+                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            {patient.treatment_start_date
+                                                ? new Date(
+                                                    patient.treatment_start_date,
+                                                ).toLocaleDateString()
+                                                : 'No asignado'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                            Total de Mediciones
+                                        </span>
+                                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                            {totalConsultas} visitas
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -192,7 +219,7 @@ export default function Show({ patient }: ShowProps) {
                         </div>
                     )}
 
-                    {/* INTERFAZ DIVIDIDA */}
+                    {/* INTERFAZ PRINCIPAL */}
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                         {/* FORMULARIO DE CAPTURA */}
                         <div className="h-fit rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -360,162 +387,207 @@ export default function Show({ patient }: ShowProps) {
                             </form>
                         </div>
 
-                        {/* HISTORIAL CLÍNICO */}
-                        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2 dark:border-gray-700 dark:bg-gray-800">
-                            <h3 className="mb-4 border-b border-gray-200 pb-2 text-lg font-bold text-blue-600 dark:border-gray-700 dark:text-blue-400">
-                                Historial de Medidas (Línea de Tiempo)
-                            </h3>
+                        {/* SECCIÓN DERECHA: HISTORIAL CLÍNICO Y GALERÍA DE PROGRESO */}
+                        <div className="space-y-6 lg:col-span-2">
+                            
+                            {/* GALERÍA DE FOTOS DE PROGRESO */}
+                            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <h3 className="mb-4 border-b border-gray-200 pb-2 text-lg font-bold text-emerald-600 dark:border-gray-700 dark:text-emerald-400">
+                                    Galería de Evolución Fotográfica
+                                </h3>
 
-                            {patient.medidas.length === 0 ? (
-                                <div className="py-12 text-center">
-                                    <p className="text-sm text-gray-400">
-                                        Este expediente no contiene registros
-                                        todavía.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="max-h-[600px] space-y-4 overflow-y-auto pr-2">
-                                    {[...patient.medidas]
-                                        .reverse()
-                                        .map((measure, index, array) => {
-                                            const totalElementos = array.length;
-                                            const posicionOriginal =
-                                                totalElementos - 1 - index;
-                                            const citaAnterior =
-                                                posicionOriginal > 0
-                                                    ? patient.medidas[
-                                                    posicionOriginal - 1
-                                                    ]
-                                                    : null;
-                                            const diferenciaPeso = citaAnterior
-                                                ? parseFloat(citaAnterior.peso) - parseFloat(measure.peso)
-                                                : null;
-
-                                            return (
-                                                <div
-                                                    key={measure.id}
-                                                    className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:shadow-sm dark:border-gray-700 dark:bg-gray-700/20"
-                                                >
-                                                    <div className="mb-3 flex items-center justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
-                                                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                                                            Consulta:{' '}
-                                                            {new Date(
-                                                                measure.created_at,
-                                                            ).toLocaleDateString(
-                                                                'es-MX',
-                                                                {
-                                                                    day: 'numeric',
-                                                                    month: 'short',
-                                                                    year: 'numeric',
-                                                                },
-                                                            )}
+                                {!patient.progress_photos || patient.progress_photos.length === 0 ? (
+                                    <div className="py-6 text-center border border-dashed rounded-lg border-gray-200 dark:border-gray-700">
+                                        <p className="text-sm text-gray-400">
+                                            No se han cargado fotos de progreso para este paciente todavía.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 max-h-[300px] overflow-y-auto pr-1">
+                                        {patient.progress_photos.map((photo) => (
+                                            <div 
+                                                key={photo.id} 
+                                                className="group relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
+                                            >
+                                                <div className="aspect-square w-full overflow-hidden">
+                                                    <img 
+                                                        src={`/storage/${photo.path}`} // Suponiendo almacenamiento en el disco público general
+                                                        alt={photo.description || "Foto de progreso"} 
+                                                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                                                    />
+                                                </div>
+                                                <div className="p-2 text-[10px] text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+                                                    <span className="block font-semibold text-gray-700 dark:text-gray-200">
+                                                        {new Date(photo.created_at).toLocaleDateString('es-MX')}
+                                                    </span>
+                                                    {photo.description && (
+                                                        <span className="block truncate text-gray-400" title={photo.description}>
+                                                            {photo.description}
                                                         </span>
-                                                        <div className="flex space-x-2">
-                                                            {diferenciaPeso !==
-                                                                null && (
-                                                                    <span
-                                                                        className={`rounded px-2 py-0.5 text-xs font-bold ${diferenciaPeso >= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}
-                                                                    >
-                                                                        {diferenciaPeso >= 0
-                                                                            ? `⬇ ${diferenciaPeso.toFixed(1)} kg`
-                                                                            : `⬆ ${Math.abs(diferenciaPeso).toFixed(1)} kg`}
-                                                                    </span>
-                                                                )}
-                                                            <span className="rounded bg-gray-200 px-2.5 py-0.5 text-xs font-black text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                                                                IMC:{' '}
-                                                                {measure.imc
-                                                                    ? parseFloat(
-                                                                        measure.imc,
-                                                                    ).toFixed(
-                                                                        1,
-                                                                    )
-                                                                    : 'N/A'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-2 gap-x-2 gap-y-3 text-xs text-gray-600 sm:grid-cols-4 dark:text-gray-300">
-                                                        <div>
-                                                            <span className="block text-gray-400">
-                                                                Peso
-                                                            </span>
-                                                            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                                                                {measure.peso}{' '}
-                                                                kg
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="block text-gray-400">
-                                                                Tórax Sup.
-                                                            </span>
-                                                            <span className="font-medium text-gray-900 dark:text-gray-100">
-                                                                {measure.tSuperior
-                                                                    ? `${measure.tSuperior} cm`
-                                                                    : '-'}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="block text-gray-400">
-                                                                Abd. Sup.
-                                                            </span>
-                                                            <span className="font-medium text-gray-900 dark:text-gray-100">
-                                                                {measure.abdomenSuperior
-                                                                    ? `${measure.abdomenSuperior} cm`
-                                                                    : '-'}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="block text-gray-400">
-                                                                Abd. Med.
-                                                            </span>
-                                                            <span className="font-medium text-gray-900 dark:text-gray-100">
-                                                                {measure.abdomenMedio
-                                                                    ? `${measure.abdomenMedio} cm`
-                                                                    : '-'}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="block text-gray-400">
-                                                                Abd. Inf.
-                                                            </span>
-                                                            <span className="font-medium text-gray-900 dark:text-gray-100">
-                                                                {measure.abdomenInferior
-                                                                    ? `${measure.abdomenInferior} cm`
-                                                                    : '-'}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="block text-gray-400">
-                                                                Ex. Sup.
-                                                            </span>
-                                                            <span className="font-medium text-gray-900 dark:text-gray-100">
-                                                                {measure.exSuperior
-                                                                    ? `${measure.exSuperior} cm`
-                                                                    : '-'}
-                                                            </span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="block text-gray-400">
-                                                                Ex. Inf.
-                                                            </span>
-                                                            <span className="font-medium text-gray-900 dark:text-gray-100">
-                                                                {measure.exInferior
-                                                                    ? `${measure.exInferior} cm`
-                                                                    : '-'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    {measure.notes && (
-                                                        <div className="mt-3 rounded border border-gray-200 bg-white p-2.5 text-xs italic text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                                                            {measure.notes}
-                                                        </div>
                                                     )}
                                                 </div>
-                                            );
-                                        })}
-                                </div>
-                            )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* HISTORIAL CLÍNICO (LÍNEA DE TIEMPO) */}
+                            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <h3 className="mb-4 border-b border-gray-200 pb-2 text-lg font-bold text-blue-600 dark:border-gray-700 dark:text-blue-400">
+                                    Historial de Medidas (Línea de Tiempo)
+                                </h3>
+
+                                {patient.medidas.length === 0 ? (
+                                    <div className="py-12 text-center">
+                                        <p className="text-sm text-gray-400">
+                                            Este expediente no contiene registros todavía.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="max-h-[400px] space-y-4 overflow-y-auto pr-2">
+                                        {[...patient.medidas]
+                                            .reverse()
+                                            .map((measure, index, array) => {
+                                                const totalElementos = array.length;
+                                                const posicionOriginal =
+                                                    totalElementos - 1 - index;
+                                                const citaAnterior =
+                                                    posicionOriginal > 0
+                                                        ? patient.medidas[
+                                                        posicionOriginal - 1
+                                                        ]
+                                                        : null;
+                                                const diferenciaPeso = citaAnterior
+                                                    ? parseFloat(citaAnterior.peso) - parseFloat(measure.peso)
+                                                    : null;
+
+                                                return (
+                                                    <div
+                                                        key={measure.id}
+                                                        className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:shadow-sm dark:border-gray-700 dark:bg-gray-700/20"
+                                                    >
+                                                        <div className="mb-3 flex items-center justify-between border-b border-gray-200 pb-2 dark:border-gray-700">
+                                                            <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                                                Consulta:{' '}
+                                                                {new Date(
+                                                                    measure.created_at,
+                                                                ).toLocaleDateString(
+                                                                    'es-MX',
+                                                                    {
+                                                                        day: 'numeric',
+                                                                        month: 'short',
+                                                                        year: 'numeric',
+                                                                    },
+                                                                )}
+                                                            </span>
+                                                            <div className="flex space-x-2">
+                                                                {diferenciaPeso !==
+                                                                    null && (
+                                                                        <span
+                                                                            className={`rounded px-2 py-0.5 text-xs font-bold ${diferenciaPeso >= 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}
+                                                                        >
+                                                                            {diferenciaPeso >= 0
+                                                                                ? `⬇ ${diferenciaPeso.toFixed(1)} kg`
+                                                                                : `⬆ ${Math.abs(diferenciaPeso).toFixed(1)} kg`}
+                                                                        </span>
+                                                                    )}
+                                                                <span className="rounded bg-gray-200 px-2.5 py-0.5 text-xs font-black text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                                                    IMC:{' '}
+                                                                    {measure.imc
+                                                                        ? parseFloat(
+                                                                            measure.imc,
+                                                                        ).toFixed(
+                                                                            1,
+                                                                        )
+                                                                        : 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-x-2 gap-y-3 text-xs text-gray-600 sm:grid-cols-4 dark:text-gray-300">
+                                                            <div>
+                                                                <span className="block text-gray-400">
+                                                                    Peso
+                                                                </span>
+                                                                <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                                                                    {measure.peso}{' '}
+                                                                    kg
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400">
+                                                                    Tórax Sup.
+                                                                </span>
+                                                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                                    {measure.tSuperior
+                                                                        ? `${measure.tSuperior} cm`
+                                                                        : '-'}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400">
+                                                                    Abd. Sup.
+                                                                </span>
+                                                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                                    {measure.abdomenSuperior
+                                                                        ? `${measure.abdomenSuperior} cm`
+                                                                        : '-'}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400">
+                                                                    Abd. Med.
+                                                                </span>
+                                                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                                    {measure.abdomenMedio
+                                                                        ? `${measure.abdomenMedio} cm`
+                                                                        : '-'}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400">
+                                                                    Abd. Inf.
+                                                                </span>
+                                                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                                    {measure.abdomenInferior
+                                                                        ? `${measure.abdomenInferior} cm`
+                                                                        : '-'}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400">
+                                                                    Ex. Sup.
+                                                                </span>
+                                                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                                    {measure.exSuperior
+                                                                        ? `${measure.exSuperior} cm`
+                                                                        : '-'}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400">
+                                                                    Ex. Inf.
+                                                                </span>
+                                                                <span className="font-medium text-gray-900 dark:text-gray-100">
+                                                                    {measure.exInferior
+                                                                        ? `${measure.exInferior} cm`
+                                                                        : '-'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {measure.notes && (
+                                                            <div className="mt-3 rounded border border-gray-200 bg-white p-2.5 text-xs italic text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                                                                {measure.notes}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

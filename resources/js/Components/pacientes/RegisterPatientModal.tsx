@@ -7,12 +7,14 @@ interface RegisterPatientModalProps {
 }
 
 export default function RegisterPatientModal({ isOpen, onClose }: RegisterPatientModalProps) {
-    // Inicializamos el formulario de Inertia
+    // Inicializamos el formulario de Inertia incluyendo las variables de contraseña
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         last_name: '',
         email: '',
         phone: '',
+        auto_password: true, // Por defecto se genera de forma automática
+        password: '',
     });
 
     if (!isOpen) return null;
@@ -21,9 +23,9 @@ export default function RegisterPatientModal({ isOpen, onClose }: RegisterPatien
         e.preventDefault();
 
         // Enviamos la petición POST a la ruta de Laravel
-        post(route('patients.store'), {
+        post(route('admin.users.store'), {
             onSuccess: () => {
-                reset(); // Limpia los campos si sale bien
+                reset(); // Limpia todos los campos si sale bien
                 onClose(); // Cierra el modal
             },
         });
@@ -99,6 +101,50 @@ export default function RegisterPatientModal({ isOpen, onClose }: RegisterPatien
                             />
                             {errors.phone && <span className="text-xs text-red-500 mt-1 block">{errors.phone}</span>}
                         </div>
+
+                        {/* Selector de Contraseña Automática / Manual */}
+                        <div className="flex items-start rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+                            <div className="flex h-5 items-center">
+                                <input
+                                    id="auto_password"
+                                    type="checkbox"
+                                    checked={data.auto_password}
+                                    onChange={e => {
+                                        setData(prev => ({
+                                            ...prev,
+                                            auto_password: e.target.checked,
+                                            // Limpiamos la contraseña escrita si decide regresar a autogenerada
+                                            password: e.target.checked ? '' : prev.password
+                                        }));
+                                    }}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                                />
+                            </div>
+                            <div className="ml-3 text-xs">
+                                <label htmlFor="auto_password" className="font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
+                                    Generar contraseña automáticamente
+                                </label>
+                                <p className="text-gray-400 dark:text-gray-500">
+                                    Se enviará una clave segura por correo al paciente.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Campo Contraseña Manual (Condicional) */}
+                        {!data.auto_password && (
+                            <div className="transition-all duration-200">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña Manual *</label>
+                                <input
+                                    type="password"
+                                    required={!data.auto_password}
+                                    value={data.password}
+                                    onChange={e => setData('password', e.target.value)}
+                                    placeholder="Mínimo 8 caracteres"
+                                    className="w-full p-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
+                                />
+                                {errors.password && <span className="text-xs text-red-500 mt-1 block">{errors.password}</span>}
+                            </div>
+                        )}
 
                         {/* Botones de Acción */}
                         <div className="flex justify-end space-x-3 pt-4 border-t dark:border-gray-700">

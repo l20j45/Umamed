@@ -43,6 +43,13 @@ return [
             'visibility' => 'public',
             'throw' => false,
         ],
+        'avatars' => [
+            'driver' => 'local',
+            'root' => storage_path('app/avatars'), // Se guardará en storage/app/avatars/
+            'url' => env('APP_URL').'/user-avatars', // URL pública limpia en el navegador
+            'visibility' => 'public',
+            'throw' => false,
+        ],
 
         's3' => [
             'driver' => 's3',
@@ -71,6 +78,7 @@ return [
 
     'links' => [
         public_path('storage') => storage_path('app/public'),
+        public_path('user-avatars') => storage_path('app/avatars'),
     ],
 
 ];

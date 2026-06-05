@@ -10,11 +10,17 @@ use App\Http\Controllers\ProgressPhotoController;
 Route::middleware(['auth', 'verified'])->group(function () {
     // Cambiamos el comportamiento del dashboard para que liste los pacientes
     Route::get('/dashboard', [PatientController::class, 'index'])->name('dashboard');
+
     // Rutas para ver expediente y guardar mediciones
     Route::get('/pacientes/{id}', [PatientController::class, 'show'])->name('patients.show');
     Route::post('/pacientes/{id}/medidas', [PatientController::class, 'storeMeasure'])->name('patients.measures.store');
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
 
+});
 
+Route::middleware(['role:admin'])->group(function () {
+    Route::get('/admin/users/create', [PatientController::class, 'create'])->name('admin.users.create');
+    Route::post('/admin/users', [PatientController::class, 'store'])->name('admin.users.store');
 });
 
 Route::middleware(['role:paciente'])->group(function () {
@@ -37,7 +43,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
 });
+
+Route::get('/testJob', [PatientController::class, 'testJob'])->name('testJob');
 
 require __DIR__.'/auth.php';

@@ -60,4 +60,36 @@ class ProfileController extends Controller
 
         return Redirect::to('/');
     }
+
+public function updateAvatar(Request $request): RedirectResponse
+    {
+        // 1. Validamos la integridad del archivo subido
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ], [
+            'avatar.required' => 'Es obligatorio seleccionar un archivo de imagen.',
+            'avatar.image' => 'El archivo proporcionado no corresponde a una imagen válida.',
+            'avatar.mimes' => 'La extensión del archivo debe ser jpeg, png, jpg o webp.',
+            'avatar.max' => 'La imagen es demasiado pesada. El límite admitido es de 2MB.',
+        ]);
+
+        $user = $request->user();
+
+        // 2. Si el usuario ya cuenta con un avatar previo, lo purgamos del disco exclusivo
+        if ($user->avatar && Storage::disk('avatars')->exists($user->avatar)) {
+            Storage::disk('avatars')->delete($user->avatar);
+        }
+
+        // 3. Almacenamos el archivo directamente en la raíz de storage/app/avatars/
+        // El método retorna únicamente el hash del nombre generado (ej: "xYz987...png")
+        $fileName = $request->file('avatar')->store('', 'avatars');
+
+        // 4. Persistimos el nombre limpio del archivo en la base de datos
+        $user->update([
+            'avatar' => $fileName
+        ]);
+
+        // Retornamos hacia atrás manteniendo el estado de scroll intacto
+        return redirect()->back()->with('success', 'Tu foto de perfil ha sido actualizada exitosamente en el servidor.');
+    }
 }

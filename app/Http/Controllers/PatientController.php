@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\UserCreated;
 use App\Models\User;
-
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class PatientController extends Controller
@@ -23,7 +25,7 @@ class PatientController extends Controller
     // 2. Ver expediente de un paciente específico + su historial de medidas
     public function show($id)
     {
-        $patient = User::role('paciente')->with('medidas')->findOrFail($id);
+        $patient = User::role('paciente')->with('medidas', 'progressPhotos')->findOrFail($id);
 
         return Inertia::render('Patients/Show', [
             'patient' => $patient,
@@ -34,13 +36,12 @@ class PatientController extends Controller
     {
         $user = auth()->user();
 
-
         $measures = $user->medidas()->orderBy('created_at', 'desc')->get();
 
         if ($measures->isEmpty()) {
             return Inertia::render('Patients/Portal', [
                 'has_data' => false,
-                'data' => null
+                'data' => null,
             ]);
         }
 
@@ -86,11 +87,10 @@ class PatientController extends Controller
                         'exSuperior' => (float) $item->exSuperior,
                         'exInferior' => (float) $item->exInferior,
                     ];
-                })->reverse()->values() // <-- Agrega ->reverse()->values() para que la gráfica fluya hacia adelante
-            ]
+                })->reverse()->values(), // <-- Agrega ->reverse()->values() para que la gráfica fluya hacia adelante
+            ],
         ]);
     }
-
 
     // 3. Procesar el formulario de una nueva medición
     public function storeMeasure(Request $request, $id)
@@ -116,5 +116,69 @@ class PatientController extends Controller
         $patient->medidas()->create($validated);
 
         return redirect()->route('patients.show', $id)->with('success', 'Medición registrada.');
+    }
+
+    public function create()
+    {
+        return Inertia::render('Patients/create');
+    }
+
+    /**
+     * Procesa el almacenamiento y registro del nuevo usuario en el sistema.
+     */
+    public function store(Request $request)
+    {
+        // 1. Validamos rigurosamente los datos de entrada
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email',
+            'auto_password' => 'required|boolean',
+            // La contraseña solo es requerida obligatoriamente si auto_password es false
+            'password' => 'required_if:auto_password,false|nullable|string|min:8',
+        ], [
+            'name.required' => 'El nombre completo es obligatorio.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.unique' => 'Este correo electrónico ya se encuentra registrado.',
+            'password.required_if' => 'Debes definir una contraseña manual si desactivas la generación automática.',
+            'password.min' => 'La contraseña manual debe contener al menos 8 caracteres.',
+        ]);
+
+        // 2. Determinamos la procedencia de la contraseña
+        if ($request->auto_password) {
+            // Genera una clave aleatoria segura de 12 caracteres (letras, números y caracteres especiales)
+            $plainPassword = Str::password(12);
+        } else {
+            $plainPassword = $request->password;
+        }
+
+        // 3. Creamos el registro en la base de datos
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($plainPassword),
+        ]);
+
+        $user->assignRole('paciente');
+
+        // 4. Disparamos el Evento enviando el usuario y la clave en texto plano para el correo electrónico
+        event(new UserCreated($user, $plainPassword));
+
+        // 5. Redireccionamos al listado general con un mensaje de éxito contextualizado
+        if ($request->auto_password) {
+            return redirect()->route('dashboard')->with('success', 'Paciente registrado con éxito. El sistema le ha enviado sus credenciales de acceso por correo.');
+        }
+
+        return redirect()->route('dashboard')->with('success', 'Paciente registrado exitosamente con la contraseña manual asignada.');
+    }
+
+    public function testJob(Request $request)
+    {
+        $user = User::first();
+        if (! $user) {
+            return 'Necesitas al menos un usuario en tu base de datos para correr esta prueba.';
+        }
+        event(new UserCreated($user, 'PasswordAutogenerado789#'));
+        return "Evento UserCreated disparado. Revisa tu consola con 'php artisan queue:work' o tu bandeja de Mailpit/Mailtrap.";
+
     }
 }
