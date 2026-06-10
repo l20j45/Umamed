@@ -11,12 +11,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // 👇 1. Forzamos a Laravel a confiar en las cabeceras TLS/SSL que inyecta ngrok
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        // 🛠️ AGREGAMOS LOS ALIAS DE SPATIE AQUÍ:
+        // 🛠️ ALIAS DE SPATIE (Mantener intactos)
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
