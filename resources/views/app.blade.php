@@ -4,24 +4,22 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <meta name="theme-color" content="#1e3a8a">
+        <meta name="theme-color" content="#243830">
         <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ config('app.name', 'Umamed') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=inter:400,500,600|lora:400,500,600" rel="stylesheet" />
 
         @routes
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/Pages/{$page['component']}.tsx"])
 
-        {{-- @vitePWA --}}
-
         @inertiaHead
     </head>
-    <body class="font-sans antialiased">
+    <body class="min-h-screen bg-paper font-sans text-ink antialiased">
         @inertia
     </body>
 </html>

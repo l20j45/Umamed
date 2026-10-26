@@ -36,9 +36,10 @@ export default function Dashboard({  patients = [] }: DashboardProps) {
         <AuthenticatedLayout
 
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                    Panel del Bariatra - Pacientes
-                </h2>
+                <div>
+                    <h2>Pacientes</h2>
+                    <p>Expedientes del consultorio</p>
+                </div>
             }
         >
             <Head title="Dashboard" />

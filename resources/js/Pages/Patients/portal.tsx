@@ -36,6 +36,8 @@ interface PhotoItem {
     photo_url: string;
     taken_at: string;
     notes: string | null;
+    categoria: string;
+    categoria_legible?: string;
 }
 
 interface PortalProps {
@@ -61,6 +63,70 @@ export default function Portal({
     // 2. Estados para controlar el índice de la foto activa en el Spotlight (Lightbox)
     const [lightboxIndex, setLightboxIndex] = useState<number>(-1);
 
+    const CATEGORIAS = [
+        { value: 'frente', label: 'Frente' },
+        { value: 'espalda', label: 'Espalda' },
+        { value: 'lateral_derecha', label: 'Lateral derecha' },
+        { value: 'lateral_izquierda', label: 'Lateral izquierda' },
+    ];
+
+    const [categoriaActiva, setCategoriaActiva] = useState<string>('frente');
+    const [indiceCarrusel, setIndiceCarrusel] = useState<number>(0);
+    const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+    const fotosPorCategoria = CATEGORIAS.reduce<Record<string, PhotoItem[]>>((acc, categoria) => {
+        acc[categoria.value] = photos.filter((foto) => (foto.categoria ?? 'frente') === categoria.value);
+        return acc;
+    }, {});
+
+    const fotosCategoriaActual = fotosPorCategoria[categoriaActiva] ?? [];
+    const fotoActual = fotosCategoriaActual[indiceCarrusel] ?? null;
+
+    const irACategoria = (categoria: string) => {
+        setCategoriaActiva(categoria);
+        setIndiceCarrusel(0);
+    };
+
+    const mostrarSiguiente = () => {
+        if (fotosCategoriaActual.length === 0) {
+            return;
+        }
+
+        setIndiceCarrusel((valor) => (valor + 1) % fotosCategoriaActual.length);
+    };
+
+    const mostrarAnterior = () => {
+        if (fotosCategoriaActual.length === 0) {
+            return;
+        }
+
+        setIndiceCarrusel((valor) => (
+            (valor - 1 + fotosCategoriaActual.length) % fotosCategoriaActual.length
+        ));
+    };
+
+    const manejarInicioToque = (evento: React.TouchEvent<HTMLDivElement>) => {
+        setTouchStartX(evento.touches[0]?.clientX ?? null);
+    };
+
+    const manejarFinToque = (evento: React.TouchEvent<HTMLDivElement>) => {
+        if (touchStartX === null) {
+            return;
+        }
+
+        const deltaX = (evento.changedTouches[0]?.clientX ?? touchStartX) - touchStartX;
+
+        if (Math.abs(deltaX) > 50) {
+            if (deltaX < 0) {
+                mostrarSiguiente();
+            } else {
+                mostrarAnterior();
+            }
+        }
+
+        setTouchStartX(null);
+    };
+
     const {
         data: photoData,
         setData: setPhotoData,
@@ -72,12 +138,17 @@ export default function Portal({
         photo: null as File | null,
         taken_at: new Date().toISOString().split('T')[0],
         notes: '',
+        categoria: 'frente',
     });
 
     const handlePhotoSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         postPhoto(route('patient.photos.store'), {
-            onSuccess: () => resetPhoto('photo', 'notes'),
+            onSuccess: () => {
+                resetPhoto('photo', 'notes', 'categoria');
+                setCategoriaActiva('frente');
+                setIndiceCarrusel(0);
+            },
         });
     };
 
@@ -144,10 +215,9 @@ export default function Portal({
         return null;
     };
 
-    // 3. Mapeamos el array de fotos al formato estructurado que requiere la librería ({ src, alt })
-    const slides = photos.map(pic => ({
+    const slides = (fotosCategoriaActual.length > 0 ? fotosCategoriaActual : photos).map((pic) => ({
         src: pic.photo_url,
-        alt: pic.notes || "Progreso clínico",
+        alt: pic.notes || `${pic.categoria_legible ?? 'Progreso'} clínico`,
     }));
 
     return (
@@ -310,6 +380,28 @@ export default function Portal({
 
                             <form onSubmit={handlePhotoSubmit} className="space-y-4">
                                 <div>
+                                    <label className="mb-1 block text-[11px] font-bold uppercase text-gray-400">
+                                        Categoría
+                                    </label>
+                                    <select
+                                        value={photoData.categoria}
+                                        onChange={(e) => setPhotoData('categoria', e.target.value)}
+                                        className="w-full rounded-md border p-2 text-xs focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                    >
+                                        {CATEGORIAS.map((categoria) => (
+                                            <option key={categoria.value} value={categoria.value}>
+                                                {categoria.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {photoErrors.categoria && (
+                                        <span className="mt-1 block text-xs text-red-500">
+                                            {photoErrors.categoria}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div>
                                     <input
                                         type="file"
                                         accept="image/*"
@@ -384,55 +476,112 @@ export default function Portal({
                                     Solo visibles para ti. Las imágenes pasan por validación de token de sesión.
                                 </p>
 
-                                <div className="grid max-h-[340px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3">
-                                    {photos.map((pic, index) => (
-                                        <div
-                                            key={pic.id}
-                                            // Al hacer click en la tarjeta, asignamos el index actual para disparar el Spotlight/Lightbox
-                                            onClick={() => setLightboxIndex(index)}
-                                            className={`group relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm transition-all duration-300 cursor-zoom-in hover:scale-[1.02] dark:border-gray-700 dark:bg-gray-900
-                                                ${removingId === pic.id ? 'opacity-0 scale-90 pointer-events-none duration-200' : ''}`}
+                                <div className="mb-4 flex flex-wrap gap-2">
+                                    {CATEGORIAS.map((categoria) => (
+                                        <button
+                                            key={categoria.value}
+                                            type="button"
+                                            onClick={() => irACategoria(categoria.value)}
+                                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                                categoriaActiva === categoria.value
+                                                    ? 'border-blue-600 bg-blue-600 text-white'
+                                                    : 'border-gray-200 bg-white text-gray-600 hover:border-blue-200 hover:text-blue-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
+                                            }`}
                                         >
-                                            <div className="aspect-[3/4] w-full overflow-hidden bg-gray-100">
+                                            {categoria.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {fotosCategoriaActual.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-xs text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                        No hay fotos registradas en esta categoría todavía.
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div
+                                            className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900"
+                                            onTouchStart={manejarInicioToque}
+                                            onTouchEnd={manejarFinToque}
+                                            onTouchCancel={() => setTouchStartX(null)}
+                                        >
+                                            <div className="aspect-[4/5] w-full overflow-hidden">
                                                 <img
-                                                    src={pic.photo_url}
-                                                    alt={pic.notes || "Progreso"}
-                                                    loading="lazy"
-                                                    className="h-full w-full object-cover object-center"
+                                                    key={fotoActual?.id ?? `${categoriaActiva}-${indiceCarrusel}`}
+                                                    src={fotoActual?.photo_url}
+                                                    alt={fotoActual?.notes || 'Progreso'}
+                                                    className="h-full w-full object-cover object-center transition-all duration-500 ease-out animate-[fadeIn_0.45s_ease]"
+                                                    style={{ opacity: 1, transform: 'scale(1.01)', touchAction: 'pan-y' }}
                                                 />
                                             </div>
 
-                                            {/* Capa superpuesta constante en el hover */}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-2">
+                                            <div className="absolute inset-x-0 top-0 flex items-center justify-between p-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={mostrarAnterior}
+                                                    className="rounded-full bg-black/40 p-2 text-white transition hover:bg-black/60"
+                                                    aria-label="Foto anterior"
+                                                >
+                                                    ‹
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={mostrarSiguiente}
+                                                    className="rounded-full bg-black/40 p-2 text-white transition hover:bg-black/60"
+                                                    aria-label="Siguiente foto"
+                                                >
+                                                    ›
+                                                </button>
+                                            </div>
 
-                                                {/* Botón de Borrado Lógico */}
-                                                <div className="flex justify-end">
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => handleSoftDelete(pic.id, e)}
-                                                        className="rounded-md bg-red-600/90 p-1 text-white hover:bg-red-600 transition shadow backdrop-blur-xs"
-                                                        title="Mover a papelera (Borrado lógico)"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 text-white">
+                                                <div className="flex items-center justify-between gap-2 text-[11px]">
+                                                    <span>{fotoActual?.categoria_legible ?? 'Foto'}</span>
+                                                    <span>{fotoActual?.taken_at ?? ''}</span>
                                                 </div>
-
-                                                {/* Nota */}
-                                                {pic.notes && (
-                                                    <p className="truncate text-[10px] text-white font-semibold text-center w-full bg-black/40 py-0.5 rounded-xs">
-                                                        {pic.notes}
-                                                    </p>
+                                                {fotoActual?.notes && (
+                                                    <p className="mt-1 text-xs text-white/90">{fotoActual.notes}</p>
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+
+                                        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                                            {fotosCategoriaActual.map((pic, index) => (
+                                                <button
+                                                    key={pic.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setIndiceCarrusel(index);
+                                                        setLightboxIndex(index);
+                                                    }}
+                                                    className={`h-20 w-20 overflow-hidden rounded-lg border-2 bg-gray-100 transition ${
+                                                        indiceCarrusel === index
+                                                            ? 'border-blue-500'
+                                                            : 'border-transparent'
+                                                    }`}
+                                                >
+                                                    <img
+                                                        src={pic.photo_url}
+                                                        alt={pic.notes || 'Progreso'}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
                     </div>
+
+                    <style>{`
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: scale(1.04); }
+                            to { opacity: 1; transform: scale(1.01); }
+                        }
+                    `}</style>
+
                     {has_data && data && (
                         <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-6 border border-gray-100 dark:border-gray-700">
                             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4">Bitácora General Antropométrica</h3>

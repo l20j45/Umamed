@@ -1,39 +1,21 @@
-# docker-compose.yml
 services:
-  Umamed:
+  umamed:
+    container_name: umamed_app
+    image: localhost/umamed:latest
     build:
-      context: .
-      dockerfile: docker/php/Dockerfile
+      context: .                  # Raíz del proyecto
+      dockerfile: Dockerfile
       target: production
     restart: unless-stopped
     env_file: .env
     volumes:
+      # La base SQLite vive en storage/app, así que este volumen la conserva
+      # junto con las fotos.
       - storage_dataUmamed:/var/www/html/storage/app
       - logsUmamed:/var/log/supervisor
     ports:
       - "6000:80"
-    depends_on:
-      mysql:
-        condition: service_healthy
-
-  mysql:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-    volumes:
-      - mysql_dataUmamed:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    # NO expongas el puerto 3306 en producción
 
 volumes:
-  mysql_dataUmamed:
   storage_dataUmamed:
   logsUmamed:

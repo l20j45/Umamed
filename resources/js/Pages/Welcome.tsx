@@ -1,271 +1,299 @@
-import { PageProps } from '@/types';
+import MapaUbicacion from '@/Components/Ui/MapaUbicacion';
+import type { PageProps } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
-import MapaUbicacion from '@/Components/Ui/MapaUbicacion'
 
-export default function Welcome({
-    auth,
-    laravelVersion,
-    phpVersion,
-}: PageProps<{ laravelVersion: string; phpVersion: string }>) {
+const TRATAMIENTOS = [
+    {
+        titulo: 'Control de obesidad y sobrepeso',
+        texto: 'Valoración de composición corporal y plan médico-nutricional para una pérdida de grasa sostenida, con mediciones objetivas en cada consulta.',
+    },
+    {
+        titulo: 'Tratamientos con GLP-1',
+        texto: 'Indicación, ajuste de dosis y seguimiento nutricional de agonistas del receptor GLP-1, con control de efectos adversos.',
+    },
+    {
+        titulo: 'Síndrome metabólico',
+        texto: 'Manejo de resistencia a la insulina, hipertensión y dislipidemias integrado al plan de reducción de peso.',
+    },
+];
+
+export default function Welcome({ auth }: PageProps) {
     const [nombre, setNombre] = useState('');
     const [telefono, setTelefono] = useState('');
 
-    // Función para redirigir directamente al WhatsApp del especialista
+    const telefonoBariatra = '523312345678';
+
     const handleWhatsAppRedirect = (e: FormEvent) => {
         e.preventDefault();
-        const telefonoBariatra = '523312345678'; // 🛠️ Coloca aquí tu número de WhatsApp real
-        const mensaje = `Hola, mi nombre es ${nombre}. Estoy interesado en agendar una valoración médica bariátrica. Mi teléfono de contacto es ${telefono}.`;
+
+        const mensaje = `Hola, mi nombre es ${nombre}. Quisiera agendar una valoración bariátrica. Mi teléfono de contacto es ${telefono}.`;
         const url = `https://wa.me/${telefonoBariatra}?text=${encodeURIComponent(mensaje)}`;
+
         window.open(url, '_blank');
     };
 
     return (
         <>
-            <Head title="Bienvenido - Dr. Alejandro Rojas" />
+            <Head title="Dra. Jessi Mora · Bariatría y nutrición clínica" />
 
-            <div className="min-h-screen bg-gray-50 font-sans text-gray-800 antialiased dark:bg-zinc-950 dark:text-gray-200">
-                {/* 1. NAV MINIMALISTA CON LINKS DE AUTENTICACIÓN DINÁMICOS */}
-                <nav className="sticky top-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-                        <span className="text-lg font-black tracking-tight text-emerald-600 dark:text-emerald-400">
-                            DRA. Jessi Mora{' '}
-                            <span className="block text-xs font-medium text-gray-400 sm:ml-2 sm:inline">
-                                Bariatría & Nutrición Clínica
-                            </span>
-                        </span>
+            <div className="min-h-screen bg-paper text-ink">
+                <header className="border-b border-sand">
+                    <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+                        <div>
+                            <p className="font-display text-xl leading-none">
+                                Umamed
+                            </p>
+                            <p className="mt-1.5 text-[10px] uppercase tracking-[0.18em] text-gray-500">
+                                Dra. Jessi Mora · Bariatría
+                            </p>
+                        </div>
 
-                        {/* Links de Login / Register / Dashboard nativos conservados */}
-                        <div className="flex items-center gap-2">
+                        <nav className="flex items-center gap-6">
+                            <a
+                                href="#tratamientos"
+                                className="hidden text-[13px] text-gray-600 hover:text-ink sm:block"
+                            >
+                                Tratamientos
+                            </a>
+                            <a
+                                href="#contacto"
+                                className="hidden text-[13px] text-gray-600 hover:text-ink sm:block"
+                            >
+                                Contacto
+                            </a>
+
                             {auth.user ? (
                                 <Link
                                     href={route('dashboard')}
-                                    className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow transition hover:bg-gray-800 dark:bg-emerald-600 dark:hover:bg-emerald-700"
+                                    className="btn-primary px-4 py-1.5 text-[13px]"
                                 >
-                                    Dashboard
+                                    Entrar al sistema
                                 </Link>
                             ) : (
-                                <>
-                                    <Link
-                                        href={route('login')}
-                                        className="rounded-md px-3 py-2 text-xs font-bold text-gray-600 transition hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-                                    >
-                                        Inicia Sesion
-                                    </Link>
-                                    {/* <Link
-                                        href={route('register')}
-                                        className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow transition hover:bg-emerald-700"
-                                    >
-                                        Register
-                                    </Link> */}
-                                </>
+                                <Link
+                                    href={route('login')}
+                                    className="btn-secondary px-4 py-1.5 text-[13px]"
+                                >
+                                    Iniciar sesión
+                                </Link>
                             )}
-                        </div>
-                    </div>
-                </nav>
-
-                {/* 2. HERO SECTION */}
-                <header className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-24">
-                    <div className="space-y-6">
-                        <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                            Control de Peso Médico y Seguro
-                        </span>
-                        <h1 className="text-4xl font-black tracking-tight text-gray-900 sm:text-5xl dark:text-white">
-                            Recupera tu salud y alcanza tu{' '}
-                            <span className="text-emerald-600 dark:text-emerald-400">
-                                peso ideal
-                            </span>{' '}
-                            de forma integral.
-                        </h1>
-                        <p className="max-w-lg text-base leading-relaxed text-gray-500 dark:text-gray-400">
-                            Tratamientos médicos personalizados orientados a la
-                            pérdida de peso, cambios metabólicos y bienestar
-                            sostenible. Sin soluciones mágicas, solo ciencia y
-                            acompañamiento profesional.
-                        </p>
-                        <div className="flex flex-wrap gap-4 pt-2">
-                            <a
-                                href="#contacto"
-                                className="rounded-lg bg-gray-900 px-5 py-3 text-sm font-bold text-white shadow transition hover:bg-gray-800 dark:bg-emerald-600 dark:hover:bg-emerald-700"
-                            >
-                                Iniciar Valoración
-                            </a>
-                            <a
-                                href="#servicios"
-                                className="rounded-lg border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-900 dark:text-gray-300 dark:hover:bg-zinc-800"
-                            >
-                                Ver Tratamientos
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* Placeholder Corporativo */}
-                    <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-                        <div className="flex aspect-[4/3] flex-col justify-between rounded-2xl border border-gray-200 bg-gradient-to-tr from-emerald-100 to-teal-50 p-8 shadow-sm dark:border-zinc-800 dark:from-zinc-900 dark:to-zinc-900">
-                            <div className="space-y-2">
-                                <span className="text-3xl">🩺</span>
-                                <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                                    Enfoque Clínico Moderno
-                                </h4>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Monitoreo antropométrico digitalizado y
-                                    planes nutricionales metabólicos avanzados.
-                                </p>
-                            </div>
-                            <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-                                <div>
-                                    <span className="block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                        Pacientes Satisfechos
-                                    </span>
-                                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
-                                        +500 Casos de Éxito
-                                    </span>
-                                </div>
-                                <span className="text-xl">📈</span>
-                            </div>
-                        </div>
+                        </nav>
                     </div>
                 </header>
 
-                {/* 3. SECCIÓN DE SERVICIOS */}
-                <section
-                    id="servicios"
-                    className="border-y border-gray-100 bg-white py-16 dark:border-zinc-800 dark:bg-zinc-900"
-                >
-                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                        <div className="mx-auto mb-12 max-w-2xl text-center">
-                            <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl dark:text-white">
-                                Tratamientos Especializados
-                            </h2>
-                            <p className="mt-2 text-sm text-gray-400">
-                                Soluciones médicas a la medida de tu metabolismo
-                                y estilo de vida.
-                            </p>
-                        </div>
+                <section className="mx-auto grid max-w-6xl gap-12 px-6 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:py-24">
+                    <div>
+                        <p className="eyebrow">
+                            Consulta de bariatría y nutrición
+                        </p>
 
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-6 dark:border-zinc-800 dark:bg-zinc-950/50">
-                                <span className="mb-3 block text-2xl">🥗</span>
-                                <h3 className="mb-2 font-bold text-gray-900 dark:text-white">
-                                    Control de Obesidad y Sobrepeso
-                                </h3>
-                                <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                                    Diagnóstico oportuno de composición corporal
-                                    y abordaje médico-nutricional para una
-                                    pérdida de grasa efectiva.
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-6 dark:border-zinc-800 dark:bg-zinc-950/50">
-                                <span className="mb-3 block text-2xl">🧬</span>
-                                <h3 className="mb-2 font-bold text-gray-900 dark:text-white">
-                                    Asesoría en Tratamientos con GLP-1
-                                </h3>
-                                <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                                    Preparación preoperatoria rigurosa y
-                                    seguimiento nutricional .
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-6 dark:border-zinc-800 dark:bg-zinc-950/50">
-                                <span className="mb-3 block text-2xl">📊</span>
-                                <h3 className="mb-2 font-bold text-gray-900 dark:text-white">
-                                    Tratamiento de Síndrome Metabólico
-                                </h3>
-                                <p className="text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                                    Control especializado de condiciones
-                                    asociadas como resistencia a la insulina,
-                                    hipertensión y dislipidemias.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                        <h1 className="mt-4 font-display text-[36px] leading-[1.12] text-ink sm:text-[44px]">
+                            Atención médica para el control de peso, sin atajos.
+                        </h1>
 
-                {/* 4. FORMULARIO DE CONTACTO */}
-                {/* 4. FORMULARIO DE CONTACTO + MAPA INTEGRADO */}
-                <section
-                    id="contacto"
-                    className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8"
-                >
-                    <div className="grid grid-cols-1 items-start gap-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-10 lg:grid-cols-3 dark:border-zinc-800 dark:bg-zinc-900">
-                        {/* Columna 1: Información Textual */}
-                        <div className="space-y-4">
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-white">
-                                Agenda tu consulta de valoración hoy
-                            </h2>
-                            <p className="text-xs leading-relaxed text-gray-400">
-                                Llena el formato para coordinar tu cita por
-                                WhatsApp o visítanos directamente en nuestras
-                                instalaciones médicas.
-                            </p>
-                            <div className="space-y-3 border-t pt-4 text-xs text-gray-500 dark:border-zinc-800 dark:text-gray-400">
-                                <p>
-                                    📍 <strong>Ubicación:</strong> Calz del Federalismo Nte, Artesanos, 44200 Guadalajara, Jal.
-                                </p>
-                                <p>
-                                    🕒 <strong>Horarios:</strong> Martes, Jueves y Sabado:
-                                    9:00 AM - 7:00 PM
-                                </p>
-                            </div>
-                        </div>
+                        <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-gray-600">
+                            Valoración clínica, seguimiento antropométrico y
+                            tratamiento nutricional individualizado. Cada
+                            paciente lleva un expediente con sus mediciones y su
+                            evolución registrada consulta por consulta.
+                        </p>
 
-                        {/* Columna 2: Formulario */}
-                        <form
-                            onSubmit={handleWhatsAppRedirect}
-                            className="space-y-4 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-950/50"
-                        >
-                            <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                    Nombre Completo
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="Ej. Juan Pérez"
-                                    className="w-full rounded-lg border-gray-200 bg-white p-2.5 text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-                                    value={nombre}
-                                    onChange={(e) => setNombre(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                    Número de Teléfono
-                                </label>
-                                <input
-                                    type="tel"
-                                    required
-                                    placeholder="Ej. 3312345678"
-                                    className="w-full rounded-lg border-gray-200 bg-white p-2.5 text-sm focus:border-emerald-500 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-                                    value={telefono}
-                                    onChange={(e) =>
-                                        setTelefono(e.target.value)
-                                    }
-                                />
-                            </div>
-                            <button
-                                type="submit"
-                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow transition hover:bg-emerald-700"
+                        <div className="mt-8 flex flex-wrap gap-3">
+                            <a
+                                href="#contacto"
+                                className="btn-primary px-5 py-2.5"
                             >
-                                <span>💬</span> Contactar por WhatsApp
-                            </button>
-                        </form>
+                                Agendar valoración
+                            </a>
+                            <a
+                                href="#tratamientos"
+                                className="btn-secondary px-5 py-2.5"
+                            >
+                                Ver tratamientos
+                            </a>
+                        </div>
 
-                        {/* Columna 3: El mapa de Google Maps adaptado */}
-                        <div className="h-full min-h-[250px] w-full">
-                            <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                Ubicación de la Clínica
-                            </label>
+                        <p className="mt-8 text-[12px] text-gray-400">
+                            Consultorio con cita previa · Guadalajara, Jalisco
+                        </p>
+                    </div>
+
+                    <aside className="card h-fit p-6">
+                        <p className="eyebrow">Ficha del consultorio</p>
+
+                        <dl className="mt-4 space-y-4 text-sm">
+                            <div>
+                                <dt className="text-[12px] text-gray-500">
+                                    Especialidad
+                                </dt>
+                                <dd className="mt-0.5">
+                                    Bariatría y nutrición clínica
+                                </dd>
+                            </div>
+                            <div className="rule pt-4">
+                                <dt className="text-[12px] text-gray-500">
+                                    Horario
+                                </dt>
+                                <dd className="mt-0.5">
+                                    Martes, jueves y sábado
+                                    <br />
+                                    9:00 a 19:00 h
+                                </dd>
+                            </div>
+                            <div className="rule pt-4">
+                                <dt className="text-[12px] text-gray-500">
+                                    Dirección
+                                </dt>
+                                <dd className="mt-0.5">
+                                    Calz. del Federalismo Nte.
+                                    <br />
+                                    Artesanos, 44200 Guadalajara, Jal.
+                                </dd>
+                            </div>
+                            <div className="rule pt-4">
+                                <dt className="text-[12px] text-gray-500">
+                                    Atención
+                                </dt>
+                                <dd className="mt-0.5">Solo con cita agendada</dd>
+                            </div>
+                        </dl>
+
+                        <a
+                            href="#contacto"
+                            className="mt-6 block border-t border-sand pt-4 text-[13px] text-pine-700 hover:text-pine-900"
+                        >
+                            Solicitar informes
+                        </a>
+                    </aside>
+                </section>
+
+                <section
+                    id="tratamientos"
+                    className="border-y border-sand bg-white"
+                >
+                    <div className="mx-auto max-w-6xl px-6 py-16">
+                        <div className="max-w-2xl">
+                            <p className="eyebrow">Tratamientos</p>
+                            <h2 className="mt-3 font-display text-[28px] leading-snug">
+                                Enfoque clínico, no dietas de moda.
+                            </h2>
+                            <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                                Cada plan parte de una valoración médica y se
+                                ajusta con mediciones objetivas, no con
+                                impresiones.
+                            </p>
+                        </div>
+
+                        <ol className="mt-10 grid gap-10 sm:grid-cols-3">
+                            {TRATAMIENTOS.map((tratamiento, indice) => (
+                                <li
+                                    key={tratamiento.titulo}
+                                    className="border-t border-sand pt-5"
+                                >
+                                    <p className="font-display text-sm text-pine-700">
+                                        {String(indice + 1).padStart(2, '0')}
+                                    </p>
+                                    <h3 className="mt-2 text-[15px] font-medium text-ink">
+                                        {tratamiento.titulo}
+                                    </h3>
+                                    <p className="mt-2 text-[13px] leading-relaxed text-gray-600">
+                                        {tratamiento.texto}
+                                    </p>
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
+                </section>
+
+                <section id="contacto" className="mx-auto max-w-6xl px-6 py-16">
+                    <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+                        <div>
+                            <p className="eyebrow">Contacto</p>
+                            <h2 className="mt-3 font-display text-[28px] leading-snug">
+                                Agenda tu valoración
+                            </h2>
+                            <p className="mt-3 max-w-md text-sm leading-relaxed text-gray-600">
+                                Déjanos tu nombre y teléfono. Se abrirá WhatsApp
+                                con el mensaje listo para enviar al consultorio.
+                            </p>
+
+                            <form
+                                onSubmit={handleWhatsAppRedirect}
+                                className="mt-6 space-y-4"
+                            >
+                                <div>
+                                    <label
+                                        htmlFor="nombre"
+                                        className="label"
+                                    >
+                                        Nombre completo
+                                    </label>
+                                    <input
+                                        id="nombre"
+                                        type="text"
+                                        required
+                                        placeholder="Ej. Juan Pérez"
+                                        className="field"
+                                        value={nombre}
+                                        onChange={(e) =>
+                                            setNombre(e.target.value)
+                                        }
+                                    />
+                                </div>
+
+                                <div>
+                                    <label
+                                        htmlFor="telefono"
+                                        className="label"
+                                    >
+                                        Teléfono
+                                    </label>
+                                    <input
+                                        id="telefono"
+                                        type="tel"
+                                        required
+                                        placeholder="Ej. 3312345678"
+                                        className="field"
+                                        value={telefono}
+                                        onChange={(e) =>
+                                            setTelefono(e.target.value)
+                                        }
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    className="btn-primary w-full"
+                                >
+                                    Solicitar informes por WhatsApp
+                                </button>
+
+                                <p className="text-[11px] leading-relaxed text-gray-400">
+                                    Tus datos se usan únicamente para agendar la
+                                    consulta.
+                                </p>
+                            </form>
+                        </div>
+
+                        <div>
                             <MapaUbicacion />
+                            <p className="mt-3 text-[12px] text-gray-500">
+                                Calz. del Federalismo Nte., Artesanos, 44200
+                                Guadalajara, Jal.
+                            </p>
                         </div>
                     </div>
                 </section>
 
-                {/* 5. FOOTER CON VERSIONES DE ENTORNO CONSERVADAS */}
-                <footer className="space-y-2 border-t border-gray-100 bg-white py-6 text-center text-xs text-gray-400 dark:border-zinc-800 dark:bg-zinc-900">
-                    <p>
-                        © {new Date().getFullYear()} l20j45 - Todos
-                        los derechos reservados. Consultorio Clínico.
-                    </p>
-   
+                <footer className="border-t border-sand">
+                    <div className="mx-auto flex max-w-6xl flex-col gap-2 px-6 py-6 text-[11px] text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+                        <p>
+                            © {new Date().getFullYear()} Umamed · Dra. Jessi
+                            Mora. Todos los derechos reservados.
+                        </p>
+                        <p>Consultorio médico · Guadalajara, Jalisco</p>
+                    </div>
                 </footer>
             </div>
         </>

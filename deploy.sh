@@ -3,30 +3,28 @@
 
 set -e
 
+# El servicio en docker-compose.yml se llama "umamed".
+SERVICE="umamed"
+
 echo "🚀 Iniciando deploy..."
 
 # Build de la imagen
 docker compose build --no-cache
 
-# Levantar MySQL primero y esperar que esté listo
-docker compose up -d mysql
-echo "⏳ Esperando MySQL..."
-sleep 10
+# Levantar la app (la base SQLite vive en el volumen de storage)
+docker compose up -d "$SERVICE"
 
-# Levantar la app
-docker compose up -d Umamed
-
-# Migraciones (esperando que el healthcheck de mysql pase)
+# Migraciones
 echo "🗃️  Ejecutando migraciones..."
-docker compose exec app php artisan migrate --force
+docker compose exec "$SERVICE" php artisan migrate --force
 
-# Cache de producción
-docker compose exec app php artisan config:cache
-docker compose exec app php artisan route:cache
-docker compose exec app php artisan view:cache
+# Cachés de producción (config primero, luego rutas y vistas)
+docker compose exec "$SERVICE" php artisan optimize:clear
+docker compose exec "$SERVICE" php artisan config:cache
+docker compose exec "$SERVICE" php artisan route:cache
+docker compose exec "$SERVICE" php artisan view:cache
 
-# Limpia jobs viejos si es re-deploy
-docker compose exec app php artisan queue:restart  # señala a los workers que se reciclen
-
+# Recicla los workers de la cola tras el deploy
+docker compose exec "$SERVICE" php artisan queue:restart
 
 echo "✅ Deploy completado!"

@@ -1,3 +1,4 @@
+import Avatar from '@/Components/Avatar';
 import { useForm, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
 
@@ -5,12 +6,10 @@ export default function UpdateAvatarForm() {
     // Obtenemos los datos del usuario actual desde las propiedades globales compartidas de Inertia
     const { auth } = usePage().props as any;
     
-    // El avatar_url resuelto en el backend o un placeholder con la inicial si es null
-    const defaultAvatar = auth.user.avatar_url 
-        ? auth.user.avatar_url 
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(auth.user.name)}&background=3b82f6&color=fff`;
+    // El avatar_url resuelto en el backend (o iniciales si no tiene foto)
+    const defaultAvatar = auth.user.avatar_url ?? null;
 
-    const [preview, setPreview] = useState<string>(defaultAvatar);
+    const [preview, setPreview] = useState<string | null>(defaultAvatar);
 
     const { data, setData, post, processing, errors } = useForm({
         avatar: null as File | null,
@@ -52,11 +51,15 @@ export default function UpdateAvatarForm() {
                 <div className="flex items-center space-x-6">
                     {/* Contenedor del Preview Circular */}
                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-gray-200 bg-gray-50 shadow-inner dark:border-gray-700 dark:bg-gray-900">
-                        <img
-                            src={preview}
-                            alt="Preview de avatar"
-                            className="h-full w-full object-cover object-center"
-                        />
+                        {preview ? (
+                            <img
+                                src={preview}
+                                alt="Vista previa del avatar"
+                                className="h-full w-full object-cover object-center"
+                            />
+                        ) : (
+                            <Avatar nombre={auth.user.name} />
+                        )}
                     </div>
 
                     {/* Input de Selección de Archivo */}

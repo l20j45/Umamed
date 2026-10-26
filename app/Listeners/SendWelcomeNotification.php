@@ -3,23 +3,16 @@
 namespace App\Listeners;
 
 use App\Events\UserCreated;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Support\Facades\Mail;
 use App\Mail\WelcomeUserMail;
+use Illuminate\Support\Facades\Mail;
 
-class SendWelcomeNotification implements ShouldQueue
+class SendWelcomeNotification
 {
     /**
-     * Create the event listener.
-     */
-    public function __construct()
-    {
-        //
-    }
-
-    /**
-     * Handle the event.
+     * Envía al paciente sus credenciales de acceso.
+     *
+     * Se envía en línea (no en cola) a propósito: así la contraseña en texto
+     * plano nunca queda guardada en la tabla `jobs` al serializar el listener.
      */
     public function handle(UserCreated $event): void
     {

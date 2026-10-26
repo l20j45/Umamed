@@ -4,137 +4,268 @@ namespace App\Http\Controllers;
 
 use App\Events\UserCreated;
 use App\Models\User;
+use Dompdf\Dompdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Inertia\Response;
+use Throwable;
 
 class PatientController extends Controller
 {
-    // 1. Listar todos los pacientes en el Dashboard
-    public function index()
+    /**
+     * Listado de pacientes en el dashboard del bariatra.
+     */
+    public function index(Request $request): Response|RedirectResponse
     {
-        // Traemos solo los usuarios que tienen el rol de 'paciente'
-        $patients = User::role('paciente')->orderBy('created_at', 'desc')->get();
+        // Un paciente no debe ver el expediente de los demás: lo mandamos a su portal.
+        if ($request->user()->hasRole('paciente')) {
+            return redirect()->route('patient.portal');
+        }
+
+        $patients = User::role('paciente')->orderByDesc('created_at')->get();
 
         return Inertia::render('Dashboard', [
             'patients' => $patients,
         ]);
     }
 
-    // 2. Ver expediente de un paciente específico + su historial de medidas
-    public function show($id)
+    /**
+     * Genera el expediente en PDF para imprimir o compartir.
+     */
+    public function exportarExpediente(int $id): HttpResponse
     {
-        $patient = User::role('paciente')->with('medidas', 'progressPhotos')->findOrFail($id);
+        $patient = User::role('paciente')
+            ->with([
+                'medidas' => fn ($query) => $query->orderBy('created_at'),
+                'progressPhotos' => fn ($query) => $query->orderByDesc('taken_at'),
+            ])
+            ->findOrFail($id);
+
+        $medidas = $patient->medidas;
+        $inicial = $medidas->first();
+        $actual = $medidas->last();
+
+        $html = view('pdf.expediente', [
+            'patient' => $patient,
+            'medidas' => $medidas,
+            'inicial' => $inicial,
+            'actual' => $actual,
+            'perdida' => $inicial && $actual
+                ? (float) $inicial->peso - (float) $actual->peso
+                : null,
+            'fotos' => $this->fotosParaPdf($patient),
+            'generado' => now((string) config('clinic.zona_horaria', 'UTC'))->format('d/m/Y H:i'),
+            'usuario' => auth()->user()?->name,
+        ])->render();
+
+        $dompdf = new Dompdf([
+            'isRemoteEnabled' => false,
+            'defaultFont' => 'Helvetica',
+        ]);
+
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $nombre = 'expediente-'.Str::slug($patient->name.' '.$patient->last_name).'.pdf';
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
+        ]);
+    }
+
+    /**
+     * Miniaturas de las últimas fotos para incrustar en el PDF.
+     *
+     * @return list<array{fecha: string|null, src: string}>
+     */
+    private function fotosParaPdf(User $patient): array
+    {
+        $fotos = [];
+
+        foreach ($patient->progressPhotos->take(6) as $foto) {
+            $ruta = Storage::disk('local')->path((string) $foto->image_path);
+
+            if (! is_file($ruta)) {
+                continue;
+            }
+
+            $datos = @file_get_contents($ruta);
+
+            if ($datos === false) {
+                continue;
+            }
+
+            // Se reduce a 320 px para que el PDF no pese de más.
+            if (function_exists('imagecreatefromstring')) {
+                $imagen = @imagecreatefromstring($datos);
+
+                if ($imagen !== false) {
+                    $ancho = max(1, imagesx($imagen));
+                    $alto = imagesy($imagen);
+                    $nuevoAlto = (int) round($alto * (320 / $ancho));
+                    $mini = imagescale($imagen, 320, max(1, $nuevoAlto), IMG_BICUBIC);
+
+                    if ($mini !== false) {
+                        ob_start();
+                        imagejpeg($mini, null, 70);
+                        $datos = (string) ob_get_clean();
+                        imagedestroy($mini);
+                    }
+
+                    imagedestroy($imagen);
+                }
+            }
+
+            $fotos[] = [
+                'fecha' => $foto->taken_at?->format('d/m/Y'),
+                'categoria' => $foto->categoria ?? 'frente',
+                'categoria_legible' => $foto->categoriaLegible(),
+                'src' => 'data:image/jpeg;base64,'.base64_encode($datos),
+            ];
+        }
+
+        return $fotos;
+    }
+
+    /**
+     * Expediente de un paciente con su historial de medidas y fotos.
+     */
+    public function show(int $id): Response
+    {
+        $patient = User::role('paciente')
+            ->with([
+                'medidas' => fn ($query) => $query->orderBy('created_at'),
+                'progressPhotos' => fn ($query) => $query->orderByDesc('taken_at'),
+            ])
+            ->findOrFail($id);
 
         return Inertia::render('Patients/Show', [
             'patient' => $patient,
         ]);
     }
 
-    public function showUserView()
+    /**
+     * Registra una nueva medición para el paciente indicado.
+     */
+    public function storeMeasure(Request $request, int $id): RedirectResponse
     {
-        $user = auth()->user();
+        $patient = User::role('paciente')->findOrFail($id);
 
-        $measures = $user->medidas()->orderBy('created_at', 'desc')->get();
+        $validated = $request->validate($this->reglasDeMedida());
 
-        if ($measures->isEmpty()) {
-            return Inertia::render('Patients/Portal', [
-                'has_data' => false,
-                'data' => null,
-            ]);
-        }
+        // El IMC se calcula en el servidor con la estatura real del paciente.
+        $estatura = $patient->estaturaParaImc();
+        $validated['imc'] = round($validated['peso'] / ($estatura ** 2), 2);
 
-        $actual = $measures->first();
-        $inicial = $measures->last();
+        $patient->medidas()->create($validated);
 
-        $mejoras = [
-            'peso' => (float) ($inicial->peso - $actual->peso),
-            'imc' => (float) ($inicial->imc - $actual->imc),
-            'tSuperior' => (float) ($inicial->tSuperior - $actual->tSuperior),
-            'abdomenSuperior' => (float) ($inicial->abdomenSuperior - $actual->abdomenSuperior),
-            'abdomenMedio' => (float) ($inicial->abdomenMedio - $actual->abdomenMedio),
-            'abdomenInferior' => (float) ($inicial->abdomenInferior - $actual->abdomenInferior),
-            'exSuperior' => (float) ($inicial->exSuperior - $actual->exSuperior),
-            'exInferior' => (float) ($inicial->exInferior - $actual->exInferior),
-        ];
-
-        return Inertia::render('Patients/portal', [
-            'has_data' => true,
-            'data' => [
-                'ultima' => [
-                    'fecha' => $actual->created_at->format('d/m/Y'),
-                    'peso' => (float) $actual->peso,
-                    'imc' => (float) $actual->imc,
-                    'tSuperior' => (float) $actual->tSuperior,
-                    'abdomenSuperior' => (float) $actual->abdomenSuperior,
-                    'abdomenMedio' => (float) $actual->abdomenMedio,
-                    'abdomenInferior' => (float) $actual->abdomenInferior,
-                    'exSuperior' => (float) $actual->exSuperior,
-                    'exInferior' => (float) $actual->exInferior,
-                    'notes' => $actual->notes,
-                ],
-                'mejoras' => $mejoras,
-                'historial' => $measures->map(function ($item) {
-                    return [
-                        'fecha' => $item->created_at->format('d/m/Y'),
-                        'peso' => (float) $item->peso,
-                        'imc' => (float) $item->imc,
-                        'tSuperior' => (float) $item->tSuperior,
-                        'abdomenSuperior' => (float) $item->abdomenSuperior,
-                        'abdomenMedio' => (float) $item->abdomenMedio,
-                        'abdomenInferior' => (float) $item->abdomenInferior,
-                        'exSuperior' => (float) $item->exSuperior,
-                        'exInferior' => (float) $item->exInferior,
-                    ];
-                })->reverse()->values(), // <-- Agrega ->reverse()->values() para que la gráfica fluya hacia adelante
-            ],
-        ]);
+        return redirect()
+            ->route('patients.show', $patient->id)
+            ->with('success', 'Medición registrada correctamente.');
     }
 
-    // 3. Procesar el formulario de una nueva medición
-    public function storeMeasure(Request $request, $id)
+    /**
+     * Corrige una medición ya capturada.
+     */
+    public function updateMeasure(Request $request, int $id, int $medida): RedirectResponse
+    {
+        $patient = User::role('paciente')->findOrFail($id);
+        $registro = $patient->medidas()->findOrFail($medida);
+
+        $validated = $request->validate($this->reglasDeMedida());
+
+        $estatura = $patient->estaturaParaImc();
+        $validated['imc'] = round($validated['peso'] / ($estatura ** 2), 2);
+
+        $registro->update($validated);
+
+        return redirect()
+            ->route('patients.show', $patient->id)
+            ->with('success', 'Medición actualizada.');
+    }
+
+    /**
+     * Elimina una medición capturada por error.
+     */
+    public function destroyMeasure(int $id, int $medida): RedirectResponse
+    {
+        $patient = User::role('paciente')->findOrFail($id);
+
+        $patient->medidas()->findOrFail($medida)->delete();
+
+        return redirect()
+            ->route('patients.show', $patient->id)
+            ->with('success', 'Medición eliminada.');
+    }
+
+    /**
+     * Actualiza los datos de contacto y la estatura del paciente.
+     */
+    public function update(Request $request, int $id): RedirectResponse
     {
         $patient = User::role('paciente')->findOrFail($id);
 
         $validated = $request->validate([
-            'peso' => 'required|numeric|min:10|max:300',
-            'tSuperior' => 'nullable|numeric|min:10|max:200',
-            'abdomenSuperior' => 'nullable|numeric|min:10|max:200',
-            'abdomenMedio' => 'nullable|numeric|min:10|max:200',
-            'abdomenInferior' => 'nullable|numeric|min:10|max:200',
-            'exSuperior' => 'nullable|numeric|min:10|max:200',
-            'exInferior' => 'nullable|numeric|min:10|max:200',
-            'notes' => 'nullable|string|max:1000',
+            'last_name' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'estatura' => ['nullable', 'numeric', 'min:0.50', 'max:2.50'],
+        ], [], [
+            'last_name' => 'apellidos',
+            'phone' => 'teléfono',
         ]);
 
-        // Cálculo opcional del IMC si tuvieras la estatura del paciente (ej. 1.70)
-        // Por ahora, si no la calculamos aquí, podemos dejar que la envíen o calcularla así:
-        $estaturaFija = 1.7;
-        $validated['imc'] = $validated['peso'] / ($estaturaFija * $estaturaFija);
+        $patient->update($validated);
 
-        $patient->medidas()->create($validated);
-
-        return redirect()->route('patients.show', $id)->with('success', 'Medición registrada.');
+        return redirect()
+            ->route('patients.show', $patient->id)
+            ->with('success', 'Datos del paciente actualizados.');
     }
 
-    public function create()
+    /**
+     * @return array<string, mixed>
+     */
+    private function reglasDeMedida(): array
+    {
+        return [
+            'peso' => ['required', 'numeric', 'min:10', 'max:300'],
+            'tSuperior' => ['nullable', 'numeric', 'min:10', 'max:200'],
+            'abdomenSuperior' => ['nullable', 'numeric', 'min:10', 'max:200'],
+            'abdomenMedio' => ['nullable', 'numeric', 'min:10', 'max:200'],
+            'abdomenInferior' => ['nullable', 'numeric', 'min:10', 'max:200'],
+            'exSuperior' => ['nullable', 'numeric', 'min:10', 'max:200'],
+            'exInferior' => ['nullable', 'numeric', 'min:10', 'max:200'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ];
+    }
+
+    /**
+     * Formulario de alta de paciente (solo administradores).
+     */
+    public function create(): Response
     {
         return Inertia::render('Patients/create');
     }
 
     /**
-     * Procesa el almacenamiento y registro del nuevo usuario en el sistema.
+     * Procesa el alta de un nuevo paciente.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        // 1. Validamos rigurosamente los datos de entrada
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email',
-            'auto_password' => 'required|boolean',
-            // La contraseña solo es requerida obligatoriamente si auto_password es false
-            'password' => 'required_if:auto_password,false|nullable|string|min:8',
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'estatura' => ['nullable', 'numeric', 'min:0.50', 'max:2.50'],
+            'auto_password' => ['required', 'boolean'],
+            'password' => ['required_if:auto_password,false', 'nullable', 'string', 'min:8'],
         ], [
             'name.required' => 'El nombre completo es obligatorio.',
             'email.required' => 'El correo electrónico es obligatorio.',
@@ -143,42 +274,41 @@ class PatientController extends Controller
             'password.min' => 'La contraseña manual debe contener al menos 8 caracteres.',
         ]);
 
-        // 2. Determinamos la procedencia de la contraseña
-        if ($request->auto_password) {
-            // Genera una clave aleatoria segura de 12 caracteres (letras, números y caracteres especiales)
-            $plainPassword = Str::password(12);
-        } else {
-            $plainPassword = $request->password;
+        $plainPassword = $request->boolean('auto_password')
+            ? Str::password(12)
+            : $validated['password'];
+
+        $user = DB::transaction(function () use ($validated, $plainPassword) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'last_name' => $validated['last_name'] ?? null,
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'estatura' => $validated['estatura'] ?? null,
+                'password' => $plainPassword,
+            ]);
+
+            $user->assignRole('paciente');
+
+            return $user;
+        });
+
+        // El listener de este evento envía las credenciales por correo.
+        try {
+            event(new UserCreated($user, $plainPassword));
+        } catch (Throwable $e) {
+            report($e);
+
+            return redirect()->route('dashboard')->with(
+                'error',
+                'El paciente se registró, pero no se pudo enviar el correo con sus credenciales. Pídele que use "¿Olvidaste tu contraseña?" o define una contraseña manual.'
+            );
         }
 
-        // 3. Creamos el registro en la base de datos
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($plainPassword),
-        ]);
+        $mensaje = $request->boolean('auto_password')
+            ? 'Paciente registrado con éxito. El sistema le ha enviado sus credenciales de acceso por correo.'
+            : 'Paciente registrado exitosamente con la contraseña manual asignada.';
 
-        $user->assignRole('paciente');
-
-        // 4. Disparamos el Evento enviando el usuario y la clave en texto plano para el correo electrónico
-        event(new UserCreated($user, $plainPassword));
-
-        // 5. Redireccionamos al listado general con un mensaje de éxito contextualizado
-        if ($request->auto_password) {
-            return redirect()->route('dashboard')->with('success', 'Paciente registrado con éxito. El sistema le ha enviado sus credenciales de acceso por correo.');
-        }
-
-        return redirect()->route('dashboard')->with('success', 'Paciente registrado exitosamente con la contraseña manual asignada.');
-    }
-
-    public function testJob(Request $request)
-    {
-        $user = User::first();
-        if (! $user) {
-            return 'Necesitas al menos un usuario en tu base de datos para correr esta prueba.';
-        }
-        event(new UserCreated($user, 'PasswordAutogenerado789#'));
-        return "Evento UserCreated disparado. Revisa tu consola con 'php artisan queue:work' o tu bandeja de Mailpit/Mailtrap.";
-
+        return redirect()->route('dashboard')->with('success', $mensaje);
     }
 }

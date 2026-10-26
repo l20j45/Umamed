@@ -1,6 +1,9 @@
 <?php
 
+use App\Models\Appointment;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /*
@@ -17,6 +20,10 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+// Los tests de Unit también arrancan la aplicación (sin base de datos) para
+// poder usar helpers del framework como config() o __().
+pest()->extend(TestCase::class)->in('Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -47,4 +54,40 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Crea un usuario con el rol indicado (los roles deben existir antes).
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function usuarioConRol(string $role, array $attributes = []): User
+{
+    $user = User::factory()->create($attributes);
+
+    $user->assignRole($role);
+
+    return $user;
+}
+
+/**
+ * Crea una cita indicando la hora en UTC (como se guarda en la base).
+ */
+function agendarCita(
+    User $bariatra,
+    ?User $paciente,
+    string $iniciaEnUtc,
+    int $minutos = 60,
+    string $estado = 'pendiente',
+): Appointment {
+    $inicio = Carbon::parse($iniciaEnUtc, 'UTC');
+
+    return Appointment::create([
+        'bariatra_id' => $bariatra->id,
+        'user_id' => $paciente?->id,
+        'tipo' => 'seguimiento',
+        'inicia_en' => $inicio,
+        'termina_en' => $inicio->copy()->addMinutes($minutos),
+        'estado' => $estado,
+    ]);
 }

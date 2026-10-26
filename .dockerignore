@@ -1,0 +1,33 @@
+.git
+.gitignore
+.github
+.idea
+.vscode
+.fleet
+
+# Dependencias: se instalan dentro de la imagen
+vendor
+node_modules
+
+# Artefactos de build locales
+public/build
+public/hot
+
+# Entorno local y secretos (nunca dentro de la imagen)
+.env
+.env.*
+!.env.example
+
+# Datos locales
+mariadb_data
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Tests y herramientas de desarrollo
+tests
+phpunit.xml
+.prettierrc
+.eslintrc.json
+tsconfig.json

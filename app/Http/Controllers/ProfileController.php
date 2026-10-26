@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,7 +62,7 @@ class ProfileController extends Controller
         return Redirect::to('/');
     }
 
-public function updateAvatar(Request $request): RedirectResponse
+    public function updateAvatar(Request $request): RedirectResponse
     {
         // 1. Validamos la integridad del archivo subido
         $request->validate([
@@ -86,7 +87,7 @@ public function updateAvatar(Request $request): RedirectResponse
 
         // 4. Persistimos el nombre limpio del archivo en la base de datos
         $user->update([
-            'avatar' => $fileName
+            'avatar' => $fileName,
         ]);
 
         // Retornamos hacia atrás manteniendo el estado de scroll intacto

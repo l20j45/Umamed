@@ -13,6 +13,7 @@ export default function RegisterPatientModal({ isOpen, onClose }: RegisterPatien
         last_name: '',
         email: '',
         phone: '',
+        estatura: '', // Estatura en metros: se usa para calcular el IMC
         auto_password: true, // Por defecto se genera de forma automática
         password: '',
     });
@@ -100,6 +101,26 @@ export default function RegisterPatientModal({ isOpen, onClose }: RegisterPatien
                                 className="w-full p-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
                             />
                             {errors.phone && <span className="text-xs text-red-500 mt-1 block">{errors.phone}</span>}
+                        </div>
+
+                        {/* Campo Estatura */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estatura (m)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0.5"
+                                max="2.5"
+                                placeholder="1.70"
+                                value={data.estatura}
+                                onChange={e => setData('estatura', e.target.value)}
+                                className="w-full p-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <p className="mt-1 text-[11px] text-gray-400">
+                                Se usa para calcular el IMC de cada medición. Si se deja vacía se
+                                asume 1.70 m.
+                            </p>
+                            {errors.estatura && <span className="text-xs text-red-500 mt-1 block">{errors.estatura}</span>}
                         </div>
 
                         {/* Selector de Contraseña Automática / Manual */}

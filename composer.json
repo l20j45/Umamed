@@ -1,29 +1,31 @@
 {
+    "$schema": "https://getcomposer.org/schema.json",
     "name": "laravel/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Seguimiento clínico de pacientes (Umamed).",
+    "keywords": ["laravel", "framework", "inertia", "react"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
-        "inertiajs/inertia-laravel": "^2.0",
-        "laravel/framework": "^11.0",
-        "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^2.9",
+        "php": "^8.3",
+        "dompdf/dompdf": "^3.1",
+        "inertiajs/inertia-laravel": "^2.0.28",
+        "laravel/framework": "^13.0",
+        "laravel/sanctum": "^4.3",
+        "laravel/tinker": "^3.0",
         "opcodesio/log-viewer": "^3.24",
-        "spatie/laravel-permission": "^6.25",
-        "tightenco/ziggy": "^2.0"
+        "spatie/laravel-permission": "^8.3",
+        "tightenco/ziggy": "^2.6"
     },
     "require-dev": {
-        "fakerphp/faker": "^1.23",
-        "laravel/breeze": "^2.4",
-        "laravel/pint": "^1.13",
-        "laravel/sail": "^1.26",
+        "fakerphp/faker": "^1.24",
+        "laravel-lang/common": "^6.8",
+        "laravel/pint": "^1.27",
+        "laravel/sail": "^1.41",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
-        "pestphp/pest": "^2.36",
-        "pestphp/pest-plugin-laravel": "^2.4",
-        "spatie/laravel-ignition": "^2.4"
+        "nunomaduro/collision": "^8.6",
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1",
+        "phpunit/phpunit": "^12.5"
     },
     "autoload": {
         "psr-4": {
@@ -51,13 +53,14 @@
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi",
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-            "@php artisan migrate --ansi"
+            "@php artisan migrate --graceful --ansi"
+        ],
+        "test": [
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php artisan test"
         ]
     },
     "extra": {
-        "branch-alias": {
-            "dev-master": "11.x-dev"
-        },
         "laravel": {
             "dont-discover": []
         }

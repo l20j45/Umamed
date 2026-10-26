@@ -40,9 +40,10 @@ return [
 
         'database' => [
             'driver' => 'database',
+            'connection' => env('DB_CACHE_CONNECTION'),
             'table' => env('DB_CACHE_TABLE', 'cache'),
-            'connection' => env('DB_CACHE_CONNECTION', null),
-            'lock_connection' => env('DB_CACHE_LOCK_CONNECTION', null),
+            'lock_connection' => env('DB_CACHE_LOCK_CONNECTION'),
+            'lock_table' => env('DB_CACHE_LOCK_TABLE', 'cache_locks'),
         ],
 
         'file' => [
@@ -102,6 +103,20 @@ return [
     |
     */
 
-    'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache_'),
+    'prefix' => env('CACHE_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-cache-'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Serializable Classes
+    |--------------------------------------------------------------------------
+    |
+    | This value determines the classes that may be unserialized from cache
+    | storage. By default no PHP classes are unserialized from the cache to
+    | prevent gadget chain attacks in case the APP_KEY is ever leaked. If
+    | you intentionally cache PHP objects, list the allowed classes.
+    |
+    */
+
+    'serializable_classes' => false,
 
 ];

@@ -1,5 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
+import Avatar from '@/Components/Avatar';
+import { Head, router, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 
 interface Medida {
     id: number;
@@ -35,13 +37,14 @@ interface ShowProps {
         progress_photos?: ProgressPhoto[]; // Relación con sus fotos de evolución
         email?: string;
         phone?: string;
+        estatura?: string | number | null;
         treatment_start_date?: string;
     };
 }
 
 export default function Show({ patient }: ShowProps) {
     // Inicializamos el formulario con los campos antropométricos
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, patch, processing, errors, reset } = useForm({
         peso: '',
         tSuperior: '',
         abdomenSuperior: '',
@@ -52,21 +55,89 @@ export default function Show({ patient }: ShowProps) {
         notes: '',
     });
 
+    // Id de la medición que se está corrigiendo (null = nueva captura).
+    const [medidaEditando, setMedidaEditando] = useState<number | null>(null);
+
+    const estaturaForm = useForm({
+        estatura: patient.estatura ? String(patient.estatura) : '',
+    });
+
+    const guardarEstatura = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        estaturaForm.patch(route('patients.update', patient.id), {
+            preserveScroll: true,
+        });
+    };
+
+    const limpiarFormulario = () => {
+        reset(
+            'peso',
+            'tSuperior',
+            'abdomenSuperior',
+            'abdomenMedio',
+            'abdomenInferior',
+            'exSuperior',
+            'exInferior',
+            'notes',
+        );
+        setMedidaEditando(null);
+    };
+
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        post(route('patients.measures.store', { id: patient.id }), {
-            onSuccess: () =>
-                reset(
-                    'peso',
-                    'tSuperior',
-                    'abdomenSuperior',
-                    'abdomenMedio',
-                    'abdomenInferior',
-                    'exSuperior',
-                    'exInferior',
-                    'notes',
-                ),
+
+        const opciones = { onSuccess: () => limpiarFormulario() };
+
+        if (medidaEditando) {
+            patch(
+                route('patients.measures.update', {
+                    id: patient.id,
+                    medida: medidaEditando,
+                }),
+                opciones,
+            );
+
+            return;
+        }
+
+        post(route('patients.measures.store', { id: patient.id }), opciones);
+    };
+
+    const editarMedida = (medida: Medida) => {
+        setMedidaEditando(medida.id);
+        setData({
+            peso: String(medida.peso ?? ''),
+            tSuperior: String(medida.tSuperior ?? ''),
+            abdomenSuperior: String(medida.abdomenSuperior ?? ''),
+            abdomenMedio: String(medida.abdomenMedio ?? ''),
+            abdomenInferior: String(medida.abdomenInferior ?? ''),
+            exSuperior: String(medida.exSuperior ?? ''),
+            exInferior: String(medida.exInferior ?? ''),
+            notes: medida.notes ?? '',
         });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const eliminarMedida = (medida: Medida) => {
+        if (
+            !window.confirm(
+                '¿Eliminar esta medición del expediente? No se puede deshacer.',
+            )
+        ) {
+            return;
+        }
+
+        router.delete(
+            route('patients.measures.destroy', {
+                id: patient.id,
+                medida: medida.id,
+            }),
+            { preserveScroll: true },
+        );
+
+        if (medidaEditando === medida.id) {
+            limpiarFormulario();
+        }
     };
 
     // --- CÁLCULOS CLÍNICOS EN CALIENTE ---
@@ -86,10 +157,10 @@ export default function Show({ patient }: ShowProps) {
               parseFloat(ultimaMedicion.peso)
             : 0;
 
-    // Resolver la imagen del avatar del paciente
+    // La foto del paciente; si no tiene, el avatar muestra sus iniciales.
     const patientAvatarUrl = patient.avatar
         ? `/user-avatars/${patient.avatar}`
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(patient.name)}&background=10b981&color=fff`;
+        : null;
 
     return (
         <AuthenticatedLayout
@@ -104,6 +175,12 @@ export default function Show({ patient }: ShowProps) {
                     <span className="w-fit rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
                         ID Paciente: #{patient.id}
                     </span>
+                    <a
+                        href={route('patients.pdf', patient.id)}
+                        className="w-fit rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                        Descargar expediente (PDF)
+                    </a>
                 </div>
             }
         >
@@ -115,12 +192,11 @@ export default function Show({ patient }: ShowProps) {
                     {/* TARJETA 1: DATOS PERSONALES DEL PACIENTE + AVATAR */}
                     <div className="overflow-hidden border border-gray-200 bg-white p-6 shadow-sm sm:rounded-lg dark:border-gray-700 dark:bg-gray-800">
                         <div className="flex flex-col gap-6 md:flex-row md:items-center">
-                            {/* Avatar Dinámico */}
-                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-emerald-500 bg-gray-100 shadow-inner dark:border-emerald-400">
-                                <img
-                                    src={patientAvatarUrl}
-                                    alt={`Foto de ${patient.name}`}
-                                    className="h-full w-full object-cover object-center"
+                            {/* Avatar del paciente */}
+                            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-sand bg-gray-100">
+                                <Avatar
+                                    nombre={patient.name}
+                                    url={patientAvatarUrl}
                                 />
                             </div>
 
@@ -166,6 +242,50 @@ export default function Show({ patient }: ShowProps) {
                                         </span>
                                     </div>
                                 </div>
+
+                                <form
+                                    onSubmit={guardarEstatura}
+                                    className="mt-4 flex flex-wrap items-end gap-3 border-t border-gray-100 pt-3 dark:border-gray-700"
+                                >
+                                    <div>
+                                        <label className="block text-xs text-gray-500 dark:text-gray-400">
+                                            Estatura (m)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0.5"
+                                            max="2.5"
+                                            placeholder="1.70"
+                                            value={estaturaForm.data.estatura}
+                                            onChange={(e) =>
+                                                estaturaForm.setData(
+                                                    'estatura',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className="w-28 rounded border-gray-300 bg-gray-50 text-sm text-gray-900 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        disabled={estaturaForm.processing}
+                                        className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                                    >
+                                        {estaturaForm.processing
+                                            ? 'Guardando…'
+                                            : 'Guardar estatura'}
+                                    </button>
+                                    {estaturaForm.errors.estatura && (
+                                        <span className="text-xs text-red-500">
+                                            {estaturaForm.errors.estatura}
+                                        </span>
+                                    )}
+                                    <span className="text-[11px] text-gray-400">
+                                        Se usa para calcular el IMC de cada
+                                        medición.
+                                    </span>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -200,7 +320,7 @@ export default function Show({ patient }: ShowProps) {
                                     Desde la primera consulta
                                 </span>
                             </div>
-                            <div className="rounded-lg border border-l-4 border-gray-200 border-purple-500 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                            <div className="rounded-lg border border-l-4 border-gray-200 border-pine-300 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                                 <span className="block text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                                     Evolución Interconsulta
                                 </span>
@@ -224,7 +344,9 @@ export default function Show({ patient }: ShowProps) {
                         {/* FORMULARIO DE CAPTURA */}
                         <div className="h-fit rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                             <h3 className="mb-4 border-b border-gray-200 pb-2 text-lg font-bold text-emerald-600 dark:border-gray-700 dark:text-emerald-400">
-                                Nueva Captura Antropométrica
+                                {medidaEditando
+                                    ? 'Editar medición'
+                                    : 'Nueva Captura Antropométrica'}
                             </h3>
 
                             <form onSubmit={handleSubmit} className="space-y-4">
@@ -382,8 +504,20 @@ export default function Show({ patient }: ShowProps) {
                                 >
                                     {processing
                                         ? 'Guardando...'
-                                        : 'Guardar Consulta'}
+                                        : medidaEditando
+                                          ? 'Guardar cambios'
+                                          : 'Guardar Consulta'}
                                 </button>
+
+                                {medidaEditando && (
+                                    <button
+                                        type="button"
+                                        onClick={limpiarFormulario}
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                    >
+                                        Cancelar edición
+                                    </button>
+                                )}
                             </form>
                         </div>
 
@@ -502,6 +636,30 @@ export default function Show({ patient }: ShowProps) {
                                                                         )
                                                                         : 'N/A'}
                                                                 </span>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        editarMedida(
+                                                                            measure,
+                                                                        )
+                                                                    }
+                                                                    className="rounded border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-600 transition hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                                                >
+                                                                    Editar
+                                                                </button>
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        eliminarMedida(
+                                                                            measure,
+                                                                        )
+                                                                    }
+                                                                    className="rounded border border-red-200 px-2 py-0.5 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+                                                                >
+                                                                    Eliminar
+                                                                </button>
                                                             </div>
                                                         </div>
 

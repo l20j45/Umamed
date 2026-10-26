@@ -2,8 +2,15 @@ import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa'; // 1. Importar el plugin
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+    resolve: {
+        alias: {
+            // Necesario para que los imports "@/Components/..." y "@/Layouts/..." funcionen.
+            '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
+        },
+    },
     plugins: [
         laravel({
             input: 'resources/js/app.tsx',
@@ -15,11 +22,11 @@ export default defineConfig({
             registerType: 'autoUpdate', // Actualiza el Service Worker automáticamente
             injectRegister: 'inline',
             manifest: {
-                name: 'Mi Progreso Clínico', // Nombre completo de tu app
-                short_name: 'Progreso',      // Nombre que aparecerá bajo el icono en el celular
+                name: 'Umamed · Seguimiento clínico',
+                short_name: 'Umamed',
                 description: 'Seguimiento de progreso clínico y mediciones corporales',
-                theme_color: '#1e3a8a',      // Color de la barra de estado (ej: Azul slate/indigo)
-                background_color: '#ffffff', // Color de fondo al abrir la app
+                theme_color: '#243830',
+                background_color: '#F7F5F0',
                 display: 'standalone',       // Hace que se abra a pantalla completa sin barra de navegación del navegador
                 orientation: 'portrait',     // Forzar orientación vertical si lo deseas
                 icons: [

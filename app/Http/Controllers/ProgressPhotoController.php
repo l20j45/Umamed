@@ -3,126 +3,173 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProgressPhoto;
+use App\Support\OptimizadorDeFotos;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
+use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProgressPhotoController extends Controller
 {
-    // Extendemos el método de tu Portal para incluir las fotos
-    public function index()
+    /**
+     * Portal de progreso del paciente autenticado.
+     */
+    public function index(Request $request): Response
     {
-        $user = auth()->user();
+        $user = $request->user();
 
-        // 1. Jalamos las medidas biométricas que ya tenías
-        $measures = $user->medidas()->orderBy('created_at', 'desc')->get();
-
-        // 2. Jalamos sus fotos de progreso reales ordenadas por fecha
-        $photos = $user->progressPhotos()->orderBy('taken_at', 'desc')->get();
-
-        // (Conservamos tu lógica de estructuración de medidas anteriores...)
-        $hasData = !$measures->isEmpty();
-        $medidasData = null;
-
-        if ($hasData) {
-            $actual = $measures->first();
-            $inicial = $measures->last();
-            $medidasData = [
-                'ultima' => [
-                    'fecha' => $actual->created_at->format('d/m/Y'),
-                    'peso' => (float) $actual->peso,
-                    'imc' => (float) $actual->imc,
-                    'tSuperior' => (float) $actual->tSuperior,
-                    'abdomenSuperior' => (float) $actual->abdomenSuperior,
-                    'abdomenMedio' => (float) $actual->abdomenMedio,
-                    'abdomenInferior' => (float) $actual->abdomenInferior,
-                    'exSuperior' => (float) $actual->exSuperior,
-                    'exInferior' => (float) $actual->exInferior,
-                    'notes' => $actual->notes,
-                ],
-                'mejoras' => [
-                    'peso' => (float) ($inicial->peso - $actual->peso),
-                    'imc' => (float) ($inicial->imc - $actual->imc),
-                    'tSuperior' => (float) ($inicial->tSuperior - $actual->tSuperior),
-                    'abdomenSuperior' => (float) ($inicial->abdomenSuperior - $actual->abdomenSuperior),
-                    'abdomenMedio' => (float) ($inicial->abdomenMedio - $actual->abdomenMedio),
-                    'abdomenInferior' => (float) ($inicial->abdomenInferior - $actual->abdomenInferior),
-                    'exSuperior' => (float) ($inicial->exSuperior - $actual->exSuperior),
-                    'exInferior' => (float) ($inicial->exInferior - $actual->exInferior),
-                ],
-                'historial' => $measures->map(fn($item) => [
-                    'fecha' => $item->created_at->format('d/m/Y'),
-                    'peso' => (float) $item->peso,
-                    'imc' => (float) $item->imc,
-                    'tSuperior' => (float) $item->tSuperior,
-                    'abdomenSuperior' => (float) $item->abdomenSuperior,
-                    'abdomenMedio' => (float) $item->abdomenMedio,
-                    'abdomenInferior' => (float) $item->abdomenInferior,
-                    'exSuperior' => (float) $item->exSuperior,
-                    'exInferior' => (float) $item->exInferior,
-                ])->reverse()->values()
-            ];
-
-            Log::info($photos);
-        }
+        $measures = $user->medidas()->orderByDesc('created_at')->get();
+        $photos = $user->progressPhotos()
+            ->orderByDesc('taken_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (ProgressPhoto $photo): array => [
+                'id' => $photo->id,
+                'photo_url' => $photo->photo_url,
+                'taken_at' => $photo->taken_at?->format('Y-m-d'),
+                'notes' => $photo->notes,
+                'categoria' => $photo->categoria ?? 'frente',
+                'categoria_legible' => $photo->categoriaLegible(),
+            ])
+            ->values();
 
         return Inertia::render('Patients/portal', [
-            'has_data' => $hasData,
-            'data' => $medidasData,
-            'photos' => $photos // Enviamos el array de fotos con sus URLs autohosteadas
+            'has_data' => $measures->isNotEmpty(),
+            'data' => $this->buildMeasuresPayload($measures),
+            'photos' => $photos,
         ]);
     }
 
-    // Procesa el formulario de subida (POST)
-    public function store(Request $request)
+    /**
+     * Procesa la subida de una foto de progreso.
+     */
+    public function store(Request $request, OptimizadorDeFotos $optimizador): RedirectResponse
     {
-        $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg|max:12288', // Subimos a 12MB por fotos de alta resolución
-            'taken_at' => 'required|date',
-            'notes' => 'nullable|string|max:150'
+        $validated = $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:12288'],
+            'taken_at' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:150'],
+            'categoria' => ['required', Rule::in(ProgressPhoto::CATEGORIAS)],
         ]);
 
-        // 🔒 CAMBIO: Se guarda en el disco 'local' (fuera del alcance del navegador)
-        $path = $request->file('photo')->store('private_progress_photos', 'local');
+        // Se guarda en el disco 'local' (fuera del alcance del navegador) y
+        // siempre como JPEG limpio: sin EXIF/GPS y con la orientación corregida.
+        $disco = Storage::disk('local');
+        $disco->makeDirectory('private_progress_photos');
 
-        auth()->user()->progressPhotos()->create([
-            'image_path' => $path,
-            'taken_at' => $request->taken_at,
-            'notes' => $request->notes
+        $carpeta = 'private_progress_photos';
+        $ruta = $carpeta.'/'.Str::uuid()->toString().'.jpg';
+        $original = $request->file('photo');
+
+        if (! $optimizador->procesar($original->getRealPath(), $disco->path($ruta))) {
+            // Si no se pudo sanear la imagen no se guarda tal cual: hacerlo
+            // dejaría las fotos con GPS y demás metadatos dentro del sistema.
+            $disco->delete($ruta);
+
+            throw ValidationException::withMessages([
+                'photo' => 'No pudimos procesar la imagen. Intenta con un archivo JPG o PNG.',
+            ]);
+        }
+
+        $request->user()->progressPhotos()->create([
+            'image_path' => $ruta,
+            'taken_at' => $validated['taken_at'],
+            'notes' => $validated['notes'] ?? null,
+            'categoria' => $validated['categoria'],
         ]);
 
-        return redirect()->back();
+        return back()->with('success', 'Foto de progreso registrada.');
     }
 
-    public function show($id) // <-- Mismo nombre de variable
+    /**
+     * Sirve la imagen validando que pertenezca al paciente autenticado.
+     */
+    public function show(int $id): BinaryFileResponse
     {
         $photo = ProgressPhoto::findOrFail($id);
 
-        if ($photo->user_id !== auth()->id()) {
-            abort(403, 'No estás autorizado para ver este recurso.');
-        }
+        $this->authorizeOwnership($photo);
 
-        if (!Storage::disk('local')->exists($photo->image_path)) {
+        if (! Storage::disk('local')->exists($photo->image_path)) {
             abort(404);
         }
 
         return response()->file(Storage::disk('local')->path($photo->image_path));
     }
 
-public function destroy(ProgressPhoto $photo)
+    /**
+     * Elimina (soft delete) una foto del paciente autenticado.
+     */
+    public function destroy(Request $request, ProgressPhoto $photo): RedirectResponse
     {
-        // 1. Validar que la foto pertenezca al usuario autenticado (Seguridad)
-        if ($photo->user_id !== Auth::id()) {
-            abort(403, 'No tienes permiso para eliminar esta foto.');
-        }
+        $this->authorizeOwnership($photo, $request);
 
-        // 2. Ejecutar el borrado (Laravel aplicará Soft Delete automáticamente debido al Trait)
         $photo->delete();
 
-        // 3. Redireccionar hacia atrás para que Inertia actualice el estado del componente React
         return back()->with('success', 'Foto movida a la papelera correctamente.');
     }
 
+    /**
+     * Evita que un paciente acceda a las fotos de otro.
+     */
+    private function authorizeOwnership(ProgressPhoto $photo, ?Request $request = null): void
+    {
+        $userId = (int) ($request?->user()?->getAuthIdentifier() ?? auth()->id());
+
+        if ((int) $photo->user_id !== $userId) {
+            abort(403, 'No estás autorizado para ver este recurso.');
+        }
+    }
+
+    /**
+     * Arma el payload de medidas que consume el portal.
+     */
+    private function buildMeasuresPayload($measures): ?array
+    {
+        if ($measures->isEmpty()) {
+            return null;
+        }
+
+        $actual = $measures->first();
+        $inicial = $measures->last();
+
+        // Las fechas se guardan en UTC y se muestran en la zona de la clínica:
+        // si no, una medición de las 19:00 aparecía con la fecha del día siguiente.
+        $zona = (string) config('clinic.zona_horaria', 'UTC');
+
+        $campos = [
+            'peso', 'imc', 'tSuperior', 'abdomenSuperior',
+            'abdomenMedio', 'abdomenInferior', 'exSuperior', 'exInferior',
+        ];
+
+        $mapear = static fn ($item): array => [
+            'fecha' => $item->created_at->copy()->timezone($zona)->format('d/m/Y'),
+            'peso' => (float) $item->peso,
+            'imc' => (float) $item->imc,
+            'tSuperior' => (float) $item->tSuperior,
+            'abdomenSuperior' => (float) $item->abdomenSuperior,
+            'abdomenMedio' => (float) $item->abdomenMedio,
+            'abdomenInferior' => (float) $item->abdomenInferior,
+            'exSuperior' => (float) $item->exSuperior,
+            'exInferior' => (float) $item->exInferior,
+            'notes' => $item->notes,
+        ];
+
+        $mejoras = [];
+        foreach ($campos as $campo) {
+            $mejoras[$campo] = round((float) $inicial->{$campo} - (float) $actual->{$campo}, 2);
+        }
+
+        return [
+            'ultima' => $mapear($actual),
+            'mejoras' => $mejoras,
+            // El historial se ordena del más antiguo al más reciente para la gráfica.
+            'historial' => $measures->map($mapear)->reverse()->values(),
+        ];
+    }
 }

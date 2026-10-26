@@ -13,19 +13,14 @@ class WelcomeUserMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    // Las propiedades públicas se exponen automáticamente, 
-    // pero las forzaremos en el método content para evitar fallos de deserialización de la cola.
-    public $user;
-    public $password;
-
     /**
-     * Create a new message instance.
+     * Las credenciales se pasan explícitamente a la vista en content(), así el
+     * correo funciona igual si se envía en línea o desde la cola.
      */
-    public function __construct($user, string $password)
-    {
-        $this->user = $user;
-        $this->password = $password;
-    }
+    public function __construct(
+        public User $user,
+        public string $password,
+    ) {}
 
     /**
      * Get the message envelope.
@@ -33,7 +28,7 @@ class WelcomeUserMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Bienvenido a ' . config('app.name') . ' - Tus credenciales',
+            subject: 'Bienvenido a '.config('app.name').' - Tus credenciales',
         );
     }
 
@@ -44,8 +39,6 @@ class WelcomeUserMail extends Mailable
     {
         return new Content(
             markdown: 'emails.welcome',
-            // 🔥 Al pasarlo explícitamente aquí, obligamos a Blade a recibir las variables 
-            // directo de la memoria RAM del Worker, saltándonos cualquier bug del ecosistema de colas.
             with: [
                 'name' => $this->user->name,
                 'email' => $this->user->email,

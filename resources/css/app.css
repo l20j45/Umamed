@@ -1,3 +1,94 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+    }
+
+    body {
+        @apply bg-paper font-sans text-[15px] leading-relaxed text-ink;
+    }
+
+    h1,
+    h2 {
+        @apply font-display font-normal tracking-[-0.01em];
+    }
+
+    ::selection {
+        @apply bg-pine-200 text-pine-900;
+    }
+
+    /* Cifras alineadas: tablas y datos clínicos */
+    .tabular,
+    table {
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+@layer components {
+    .card {
+        @apply border border-sand bg-white;
+    }
+
+    .card-quiet {
+        @apply border border-sand bg-[#FCFAF6];
+    }
+
+    .eyebrow {
+        @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500;
+    }
+
+    .rule {
+        @apply border-t border-sand;
+    }
+
+    .field {
+        @apply block w-full rounded-sm border-sand bg-white text-sm text-ink placeholder:text-gray-400 focus:border-pine-600 focus:ring-1 focus:ring-pine-600;
+    }
+
+    .label {
+        @apply mb-1.5 block text-[12px] font-medium text-gray-600;
+    }
+
+    /* Base compartida para los botones (sin @apply de clases propias). */
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-quiet,
+    .btn-danger {
+        @apply inline-flex items-center justify-center gap-2 rounded-sm px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pine-600 focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .btn-primary {
+        @apply bg-pine-700 text-white hover:bg-pine-800;
+    }
+
+    .btn-secondary {
+        @apply border border-sand bg-white text-ink hover:bg-gray-50;
+    }
+
+    .btn-quiet {
+        @apply text-pine-700 hover:bg-pine-50;
+    }
+
+    .btn-danger {
+        @apply border border-arcilla-200 bg-white text-arcilla-700 hover:bg-arcilla-50;
+    }
+
+    .badge {
+        @apply inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium;
+    }
+
+    /* Encabezado de página: los títulos pasan a serif sin tocar cada pantalla. */
+    .page-header h2 {
+        @apply font-display text-[22px] leading-tight text-ink;
+    }
+
+    .page-header p {
+        @apply mt-1 text-sm text-gray-500;
+    }
+}

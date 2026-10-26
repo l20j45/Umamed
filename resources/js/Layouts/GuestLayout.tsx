@@ -1,19 +1,40 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
 import { Link } from '@inertiajs/react';
 import { PropsWithChildren } from 'react';
 
 export default function Guest({ children }: PropsWithChildren) {
     return (
-        <div className="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0 dark:bg-gray-900">
-            <div>
-                <Link href="/">
-                    <ApplicationLogo className="h-20 w-20 fill-current text-gray-500" />
+        <div className="grid min-h-screen bg-paper lg:grid-cols-[1.05fr_1fr]">
+            <aside className="hidden flex-col justify-between bg-pine-800 px-12 py-12 text-pine-100 lg:flex">
+                <Link href="/" className="font-display text-2xl text-white">
+                    Umamed
                 </Link>
-            </div>
 
-            <div className="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg dark:bg-gray-800">
-                {children}
-            </div>
+                <div className="max-w-sm">
+                    <p className="font-display text-[28px] leading-snug text-white">
+                        El seguimiento que tu tratamiento merece.
+                    </p>
+                    <p className="mt-4 text-sm leading-relaxed text-pine-200">
+                        Plataforma clínica de la Dra. Jessi Mora para el control
+                        médico de peso, composición corporal y metabolismo.
+                    </p>
+                </div>
+
+                <p className="text-[10px] uppercase tracking-[0.18em] text-pine-300">
+                    Bariatría y nutrición clínica · Guadalajara
+                </p>
+            </aside>
+
+            <main className="flex items-center justify-center px-6 py-12">
+                <div className="w-full max-w-[360px]">
+                    <Link
+                        href="/"
+                        className="mb-10 block font-display text-xl text-ink lg:hidden"
+                    >
+                        Umamed
+                    </Link>
+                    {children}
+                </div>
+            </main>
         </div>
     );
 }

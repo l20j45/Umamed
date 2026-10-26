@@ -34,9 +34,17 @@ return [
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            // El archivo vive en storage/app para que lo cubra el mismo volumen
+            // que las fotos y no oculte las migraciones del proyecto.
+            'database' => env('DB_DATABASE', storage_path('app/umamed.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+            // WAL permite leer mientras se escribe: conviven el servidor web,
+            // los workers de cola y el planificador de tareas.
+            'busy_timeout' => (int) env('DB_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_JOURNAL_MODE', 'WAL'),
+            'synchronous' => env('DB_SYNCHRONOUS', 'NORMAL'),
+            'transaction_mode' => 'DEFERRED',
         ],
 
         'mysql' => [
