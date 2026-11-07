@@ -67,19 +67,16 @@ test('un bariatra no puede editar el catálogo de otro', function () {
     expect($item->fresh()->nombre)->toBe('Consulta de seguimiento');
 });
 
-test('recepción puede ver el catálogo pero no editarlo', function () {
+test('recepción y pacientes no pueden entrar al catálogo', function () {
     $doctora = usuarioConRol('bariatra');
     $recepcion = usuarioConRol('recepcionista');
+    $paciente = usuarioConRol('paciente');
 
     conceptoDe($doctora);
 
     $this->actingAs($recepcion)
         ->get(route('catalogo.index'))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->component('Catalogo/Index')
-            ->has('items', 1)
-            ->where('puedeEditar', false));
+        ->assertForbidden();
 
     $this->actingAs($recepcion)
         ->post(route('catalogo.store'), [
@@ -88,6 +85,12 @@ test('recepción puede ver el catálogo pero no editarlo', function () {
             'precio' => 10,
         ])
         ->assertForbidden();
+
+    $this->actingAs($paciente)
+        ->get(route('catalogo.index'))
+        ->assertForbidden();
+
+    expect(CatalogItem::count())->toBe(1);
 });
 
 test('el índice muestra sólo el catálogo del doctor que consulta', function () {

@@ -27,6 +27,8 @@ export default function Authenticated({
     const veAgenda = roles.some((rol) =>
         ['admin', 'bariatra', 'recepcionista'].includes(rol),
     );
+    // Dinero del consultorio: la recepcionista no ve catálogo, ingresos ni gastos.
+    const veFinanzas = roles.some((rol) => ['admin', 'bariatra'].includes(rol));
 
     const [menuAbierto, setMenuAbierto] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -89,6 +91,10 @@ export default function Authenticated({
                       label: 'Agenda',
                       active: !!route().current('agenda.*'),
                   },
+              ]
+            : []),
+        ...(veFinanzas
+            ? [
                   {
                       href: route('catalogo.index'),
                       label: 'Catálogo',
@@ -144,12 +150,23 @@ export default function Authenticated({
             <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-sand bg-white lg:flex">
                 <div className="border-b border-sand px-5 py-5">
                     <Link href="/" className="block">
-                        <span className="font-display text-[22px] leading-none text-ink">
-                            Umamed
-                        </span>
-                        <span className="mt-1.5 block text-[10px] uppercase tracking-[0.18em] text-gray-500">
-                            Bariatría y nutrición
-                        </span>
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-pine-700 shadow-sm ring-1 ring-pine-900/10">
+                                <svg viewBox="0 0 64 64" className="h-5 w-5 text-white" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M32 12.5C24.6 12.5 19 18.1 19 25.5C19 38.5 31.4 46 32 46.2C32.6 46 45 38.5 45 25.5C45 18.1 39.4 12.5 32 12.5Z" fill="#A7E6D0" opacity="0.9"/>
+                                    <path d="M32 21V43" stroke="#F8FFFC" strokeWidth="4.5" strokeLinecap="round"/>
+                                    <path d="M18.5 32H45.5" stroke="#F8FFFC" strokeWidth="4.5" strokeLinecap="round"/>
+                                </svg>
+                            </span>
+                            <div>
+                                <span className="block font-display text-[22px] leading-none text-ink">
+                                    Umamed
+                                </span>
+                                <span className="mt-1.5 block text-[10px] uppercase tracking-[0.18em] text-gray-500">
+                                    Bariatría y nutrición
+                                </span>
+                            </div>
+                        </div>
                     </Link>
                 </div>
 
@@ -209,8 +226,15 @@ export default function Authenticated({
             <div className="flex min-h-screen flex-col lg:pl-60">
                 {/* Barra superior en móvil */}
                 <div className="flex items-center justify-between border-b border-sand bg-white px-4 py-3 lg:hidden">
-                    <Link href="/" className="font-display text-lg leading-none">
-                        Umamed
+                    <Link href="/" className="flex items-center gap-2 font-display text-lg leading-none">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-pine-700 text-white">
+                            <svg viewBox="0 0 64 64" className="h-4 w-4" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M32 12.5C24.6 12.5 19 18.1 19 25.5C19 38.5 31.4 46 32 46.2C32.6 46 45 38.5 45 25.5C45 18.1 39.4 12.5 32 12.5Z" fill="#A7E6D0" opacity="0.9"/>
+                                <path d="M32 21V43" stroke="#F8FFFC" strokeWidth="4.5" strokeLinecap="round"/>
+                                <path d="M18.5 32H45.5" stroke="#F8FFFC" strokeWidth="4.5" strokeLinecap="round"/>
+                            </svg>
+                        </span>
+                        <span>Umamed</span>
                     </Link>
                     <div className="flex items-center gap-2">
                         {mostrarBotonInstalacion && (

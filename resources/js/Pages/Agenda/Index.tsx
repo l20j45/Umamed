@@ -20,8 +20,10 @@ interface Cita {
     bariatra: { id: number; nombre: string | null };
     whatsapp_url: string | null;
     recordatorio_enviado: boolean;
-    pagado: boolean;
     total: number;
+    pagado: number;
+    saldo: number;
+    estado_pago: 'pagado' | 'parcial' | 'pendiente';
 }
 
 interface Bariatra {
@@ -72,6 +74,20 @@ const ESTILO_ESTADO: Record<Estado, string> = {
 
 const textoEstado = (estado: Estado) =>
     ESTADOS.find((e) => e.valor === estado)?.texto ?? estado;
+
+// La etiqueta del pago sale del backend: pagado, parcial o pendiente según
+// los abonos registrados (un abono que no cubre el total sigue siendo parcial).
+const TEXTO_PAGO: Record<Cita['estado_pago'], string> = {
+    pagado: 'Pagado',
+    parcial: 'Parcial',
+    pendiente: 'Pendiente',
+};
+
+const CLASE_PAGO: Record<Cita['estado_pago'], string> = {
+    pagado: 'text-pine-700',
+    parcial: 'text-amber-700',
+    pendiente: 'text-arcilla-700',
+};
 
 const textoTipo = (tipo: string) =>
     TIPOS.find((t) => t.valor === tipo)?.texto ?? tipo;
@@ -452,14 +468,8 @@ export default function Agenda({
                                             <span className="tabular font-medium text-ink">
                                                 {moneda(cita.total)}
                                             </span>{' '}
-                                            <span
-                                                className={
-                                                    cita.pagado
-                                                        ? 'text-pine-700'
-                                                        : 'text-arcilla-700'
-                                                }
-                                            >
-                                                · {cita.pagado ? 'Pagado' : 'Pendiente'}
+                                            <span className={CLASE_PAGO[cita.estado_pago]}>
+                                                · {TEXTO_PAGO[cita.estado_pago]}
                                             </span>
                                         </p>
 

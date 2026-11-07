@@ -8,8 +8,10 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-        <title inertia>{{ config('app.name', 'Umamed') }}</title>
+        <title inertia>{{ config('app.name', 'Umamed | Bariatría y Nutrición') }}</title>
 
+        <link rel="icon" type="image/svg+xml" href="/icons/health-mark.svg">
+        <link rel="shortcut icon" href="/icons/health-mark.svg">
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600|lora:400,500,600" rel="stylesheet" />
 

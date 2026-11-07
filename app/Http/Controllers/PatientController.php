@@ -143,12 +143,101 @@ class PatientController extends Controller
             ->with([
                 'medidas' => fn ($query) => $query->orderBy('created_at'),
                 'progressPhotos' => fn ($query) => $query->orderByDesc('taken_at'),
+                'observaciones' => fn ($query) => $query->orderByDesc('created_at'),
             ])
             ->findOrFail($id);
 
         return Inertia::render('Patients/Show', [
             'patient' => $patient,
         ]);
+    }
+
+    /**
+     * Registra un seguimiento estándar con observaciones, dieta y recomendaciones.
+     */
+    public function storeObservation(Request $request, int $id): RedirectResponse
+    {
+        $patient = User::role('paciente')->findOrFail($id);
+
+        $validated = $request->validate([
+            'titulo' => ['required', 'string', 'max:255'],
+            'observaciones' => ['required', 'string', 'max:5000'],
+            'dieta' => ['nullable', 'string', 'max:5000'],
+            'recomendaciones' => ['nullable', 'string', 'max:5000'],
+            'formato' => ['nullable', 'string', 'in:estandar,html'],
+        ], [
+            'titulo.required' => 'El título del seguimiento es obligatorio.',
+            'observaciones.required' => 'Debes escribir las observaciones del paciente.',
+        ]);
+
+        $patient->observaciones()->create([
+            'created_by' => auth()->id(),
+            'titulo' => $validated['titulo'],
+            'observaciones' => $validated['observaciones'],
+            'dieta' => $validated['dieta'] ?? null,
+            'recomendaciones' => $validated['recomendaciones'] ?? null,
+            'formato' => $validated['formato'] ?? 'estandar',
+        ]);
+
+        return redirect()
+            ->route('patients.show', $patient->id)
+            ->with('success', 'Seguimiento registrado correctamente.');
+    }
+
+    /**
+     * Genera un PDF estándar para el seguimiento clínico de un paciente.
+     *
+     * El bariatra puede descargar el PDF de cualquiera de sus pacientes, pero
+     * un paciente que entra desde su portal sólo puede descargar el suyo.
+     */
+    public function exportarObservacion(Request $request, int $id, int $observacion): HttpResponse
+    {
+        $usuario = $request->user();
+
+        if ($usuario && $usuario->hasRole('paciente')
+            && (int) $usuario->getAuthIdentifier() !== (int) $id) {
+            abort(403, 'No estás autorizado para ver este recurso.');
+        }
+
+        $patient = User::role('paciente')->findOrFail($id);
+        $reporte = $patient->observaciones()->findOrFail($observacion);
+
+        $html = view('pdf.observaciones-paciente', [
+            'patient' => $patient,
+            'reporte' => $reporte,
+            'generado' => now((string) config('clinic.zona_horaria', 'UTC'))->format('d/m/Y H:i'),
+            'usuario' => auth()->user()?->name,
+        ])->render();
+
+        $dompdf = new Dompdf([
+            'isRemoteEnabled' => false,
+            'defaultFont' => 'Helvetica',
+        ]);
+
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $nombre = 'seguimiento-'.Str::slug($patient->name.' '.$patient->last_name.'-'.$reporte->titulo).'.pdf';
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$nombre.'"',
+        ]);
+    }
+
+    /**
+     * Elimina un seguimiento registrado por error.
+     */
+    public function destroyObservation(int $id, int $observacion): RedirectResponse
+    {
+        $patient = User::role('paciente')->findOrFail($id);
+
+        $patient->observaciones()->findOrFail($observacion)->delete();
+
+        return redirect()
+            ->route('patients.show', $patient->id)
+            ->with('success', 'Seguimiento eliminado.');
     }
 
     /**

@@ -38,10 +38,26 @@ class ProgressPhotoController extends Controller
             ])
             ->values();
 
+        $observaciones = $user->observaciones()
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($observacion): array => [
+                'id' => $observacion->id,
+                'titulo' => $observacion->titulo,
+                'observaciones' => $observacion->observaciones,
+                'dieta' => $observacion->dieta,
+                'recomendaciones' => $observacion->recomendaciones,
+                'formato' => $observacion->formato ?? 'estandar',
+                'created_at' => $observacion->created_at?->format('Y-m-d'),
+                'creador' => $observacion->creador?->name,
+            ])
+            ->values();
+
         return Inertia::render('Patients/portal', [
             'has_data' => $measures->isNotEmpty(),
             'data' => $this->buildMeasuresPayload($measures),
             'photos' => $photos,
+            'observaciones' => $observaciones,
         ]);
     }
 
@@ -54,8 +70,10 @@ class ProgressPhotoController extends Controller
             'photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:12288'],
             'taken_at' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:150'],
-            'categoria' => ['required', Rule::in(ProgressPhoto::CATEGORIAS)],
+            'categoria' => ['sometimes', 'nullable', Rule::in(ProgressPhoto::CATEGORIAS)],
         ]);
+
+        $validated['categoria'] = $validated['categoria'] ?? 'frente';
 
         // Se guarda en el disco 'local' (fuera del alcance del navegador) y
         // siempre como JPEG limpio: sin EXIF/GPS y con la orientación corregida.

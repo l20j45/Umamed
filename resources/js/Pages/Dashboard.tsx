@@ -1,6 +1,7 @@
 import RegisterPatientModal from '@/Components/pacientes/RegisterPatientModal';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import type { PageProps } from '@/types';
 import { useState } from 'react';
 
 interface Patient {
@@ -17,7 +18,12 @@ interface DashboardProps {
 }
 
 export default function Dashboard({  patients = [] }: DashboardProps) {
-    // 2. Estado para el texto del buscador
+    const page = usePage().props as unknown as PageProps;
+    const roles: string[] = page.auth.user.roles ?? [];
+    // El expediente sólo lo abre el bariatra; admin y recepción solo
+    // localizan al paciente para agendarle una cita.
+    const veExpediente = roles.includes('bariatra');
+    // Estado para el texto del buscador
     const [searchQuery, setSearchQuery] = useState('');
     // 2. Estado para abrir/cerrar el modal
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,15 +152,24 @@ export default function Dashboard({  patients = [] }: DashboardProps) {
                                                     {patient.phone || 'N/A'}
                                                 </td>
                                                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                                                    <Link
-                                                        href={route(
-                                                            'patients.show',
-                                                            { id: patient.id },
-                                                        )}
-                                                        className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                                                    >
-                                                        Ver Expediente →
-                                                    </Link>
+                                                    {veExpediente ? (
+                                                        <Link
+                                                            href={route(
+                                                                'patients.show',
+                                                                { id: patient.id },
+                                                            )}
+                                                            className="font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                                                        >
+                                                            Ver Expediente →
+                                                        </Link>
+                                                    ) : (
+                                                        <Link
+                                                            href={route('agenda.index')}
+                                                            className="font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                                                        >
+                                                            Agendar cita →
+                                                        </Link>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

@@ -55,11 +55,52 @@ test('el admin puede dar de alta un paciente y se le asigna el rol', function ()
         ->and($paciente->hasRole('paciente'))->toBeTrue();
 });
 
-test('la medición calcula el IMC con la estatura real del paciente', function () {
+test('la recepción también puede dar de alta pacientes', function () {
+    Mail::fake();
+
+    $recepcionista = usuarioConRol('recepcionista');
+
+    $this->actingAs($recepcionista)
+        ->post('/admin/users', [
+            'name' => 'Paciente por Recepción',
+            'email' => 'recepcion.alta@example.com',
+            'auto_password' => true,
+        ])
+        ->assertRedirect(route('dashboard'))
+        ->assertSessionHasNoErrors();
+
+    $paciente = User::query()->where('email', 'recepcion.alta@example.com')->first();
+
+    expect($paciente)->not->toBeNull()
+        ->and($paciente->hasRole('paciente'))->toBeTrue();
+});
+
+test('admin y recepción no abren el expediente; sí el bariatra', function () {
     $admin = usuarioConRol('admin');
-    $paciente = usuarioConRol('paciente', ['estatura' => 1.60]);
+    $recepcionista = usuarioConRol('recepcionista');
+    $bariatra = usuarioConRol('bariatra');
+    $paciente = usuarioConRol('paciente');
 
     $this->actingAs($admin)
+        ->get(route('patients.show', $paciente->id))
+        ->assertForbidden();
+
+    $this->actingAs($recepcionista)
+        ->get(route('patients.show', $paciente->id))
+        ->assertForbidden();
+
+    $this->actingAs($bariatra)
+        ->get(route('patients.show', $paciente->id))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Patients/Show'));
+});
+
+test('la medición calcula el IMC con la estatura real del paciente', function () {
+    $bariatra = usuarioConRol('bariatra');
+    $paciente = usuarioConRol('paciente', ['estatura' => 1.60]);
+
+    $this->actingAs($bariatra)
         ->post(route('patients.measures.store', $paciente->id), ['peso' => 64])
         ->assertRedirect(route('patients.show', $paciente->id));
 
@@ -110,6 +151,30 @@ test('el paciente ve su portal con sus fotos de progreso', function () {
             ->component('Patients/portal')
             ->has('photos', 1)
             ->has('photos.0.photo_url'));
+});
+
+test('el paciente puede ver el último seguimiento clínico con dieta y recomendaciones', function () {
+    $paciente = usuarioConRol('paciente');
+    $doctora = usuarioConRol('bariatra');
+
+    $paciente->observaciones()->create([
+        'created_by' => $doctora->id,
+        'titulo' => 'Seguimiento semanal',
+        'observaciones' => 'Ha bajado 1.2 kg y mantiene mejor hidratación.',
+        'dieta' => '1600 kcal, proteína y verduras.',
+        'recomendaciones' => 'Caminar 30 minutos al día y tomar al menos 2 litros de agua.',
+        'formato' => 'estandar',
+    ]);
+
+    $this->actingAs($paciente)
+        ->get(route('patient.portal'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Patients/portal')
+            ->has('observaciones', 1)
+            ->where('observaciones.0.titulo', 'Seguimiento semanal')
+            ->where('observaciones.0.dieta', '1600 kcal, proteína y verduras.')
+            ->where('observaciones.0.recomendaciones', 'Caminar 30 minutos al día y tomar al menos 2 litros de agua.'));
 });
 
 test('no se puede ver la foto de otro paciente', function () {

@@ -15,7 +15,7 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
         });
 }
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Umamed | Bariatría y Nutrición';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

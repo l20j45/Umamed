@@ -40,8 +40,19 @@ interface PhotoItem {
     categoria_legible?: string;
 }
 
+interface ObservacionDoctor {
+    id: number;
+    titulo: string;
+    observaciones: string;
+    dieta?: string | null;
+    recomendaciones?: string | null;
+    formato?: string;
+    created_at?: string;
+    creador?: string | null;
+}
+
 interface PortalProps {
-    auth: { user: { name: string } };
+    auth: { user: { id: number; name: string } };
     has_data: boolean;
     data: {
         ultima: MeasureItem & { notes: string | null };
@@ -49,6 +60,53 @@ interface PortalProps {
         historial: MeasureItem[];
     } | null;
     photos: PhotoItem[];
+    observaciones?: ObservacionDoctor[];
+}
+
+function BodyViewExample({ label, view }: { label: string; view: 'front' | 'back' | 'side' }) {
+    const common = {
+        fill: 'none',
+        stroke: '#111827',
+        strokeWidth: 2.2,
+        strokeLinecap: 'round' as const,
+        strokeLinejoin: 'round' as const,
+    };
+
+    const profile = {
+        front: (
+            <svg viewBox="0 0 120 180" className="h-16 w-16">
+                <path {...common} d="M60 20c-10 0-18 8-18 18v8c0 11 6 19 18 19s18-8 18-19v-8c0-10-8-18-18-18Z" />
+                <path {...common} d="M46 62h28l7 46-7 44H53l-7-44 7-46Z" />
+                <path {...common} d="M46 72l-15 25M74 72l15 25M48 118l-16 36M72 118l16 36" />
+                <path {...common} d="M58 146l-4 22M62 146l4 22" />
+            </svg>
+        ),
+        back: (
+            <svg viewBox="0 0 120 180" className="h-16 w-16">
+                <path {...common} d="M60 20c-10 0-18 8-18 18v8c0 11 6 19 18 19s18-8 18-19v-8c0-10-8-18-18-18Z" />
+                <path {...common} d="M46 62h28l7 46-7 44H53l-7-44 7-46Z" />
+                <path {...common} d="M46 72l-16 23M74 72l16 23M49 118l-17 36M71 118l17 36" />
+                <path {...common} d="M58 146l-4 22M62 146l4 22" />
+            </svg>
+        ),
+        side: (
+            <svg viewBox="0 0 120 180" className="h-16 w-16">
+                <path {...common} d="M62 18c-9 0-16 8-16 18v11c0 8 4 15 11 19l9 6 9-6c7-4 11-11 11-19V36c0-10-7-18-16-18h-8Z" />
+                <path {...common} d="M52 62h20l10 41v41H42V103l10-41Z" />
+                <path {...common} d="M44 74L26 98M73 74l19 20M52 118l-14 35M62 118l5 35" />
+                <path {...common} d="M50 146l-5 23M65 146l5 23" />
+            </svg>
+        )
+    };
+
+    return (
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 bg-white p-2 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            {profile[view]}
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-300">
+                {label}
+            </span>
+        </div>
+    );
 }
 
 export default function Portal({
@@ -56,6 +114,7 @@ export default function Portal({
     has_data,
     data,
     photos = [],
+    observaciones = [],
 }: PortalProps) {
 
     const [removingId, setRemovingId] = useState<number | null>(null);
@@ -64,7 +123,7 @@ export default function Portal({
     const [lightboxIndex, setLightboxIndex] = useState<number>(-1);
 
     const CATEGORIAS = [
-        { value: 'frente', label: 'Frente' },
+        { value: 'frente', label: 'Frontal' },
         { value: 'espalda', label: 'Espalda' },
         { value: 'lateral_derecha', label: 'Lateral derecha' },
         { value: 'lateral_izquierda', label: 'Lateral izquierda' },
@@ -244,6 +303,112 @@ export default function Portal({
                         </div>
                     ) : (
                         <>
+                            {observaciones.length > 0 && (
+                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow dark:border-emerald-900/50 dark:bg-emerald-900/10">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">
+                                                Plan de seguimiento
+                                            </p>
+                                            <h3 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                                                {observaciones[0].titulo}
+                                            </h3>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase text-emerald-700 dark:border-emerald-800 dark:bg-gray-900 dark:text-emerald-300">
+                                                {observaciones[0].creador ?? 'Doctor'}
+                                            </span>
+                                            <a
+                                                href={route('patients.observations.pdf', {
+                                                    id: auth.user.id,
+                                                    observacion: observaciones[0].id,
+                                                })}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-[10px] font-bold uppercase text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-700 dark:bg-gray-900 dark:text-emerald-300"
+                                            >
+                                                Ver PDF
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 lg:grid-cols-3">
+                                        <div className="rounded-lg border border-white/70 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                                                Observaciones
+                                            </p>
+                                            <p className="whitespace-pre-line text-sm leading-6 text-gray-700 dark:text-gray-200">
+                                                {observaciones[0].observaciones}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-lg border border-white/70 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                                                Dieta
+                                            </p>
+                                            <p className="whitespace-pre-line text-sm leading-6 text-gray-700 dark:text-gray-200">
+                                                {observaciones[0].dieta || 'Sin dieta especificada en este seguimiento.'}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-lg border border-white/70 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                                                Recomendaciones
+                                            </p>
+                                            <p className="whitespace-pre-line text-sm leading-6 text-gray-700 dark:text-gray-200">
+                                                {observaciones[0].recomendaciones || 'Sin recomendaciones adicionales.'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Historial completo: cada seguimiento se puede
+                                        abrir o descargar en PDF. */}
+                                    {observaciones.length > 1 && (
+                                        <div className="mt-4 rounded-lg border border-white/70 bg-white/80 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                                                Historial de seguimientos ({observaciones.length})
+                                            </p>
+                                            <ul className="space-y-2">
+                                                {observaciones.map((obs) => (
+                                                    <li
+                                                        key={obs.id}
+                                                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-gray-200 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+                                                    >
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                                                {obs.titulo}
+                                                            </p>
+                                                            {obs.created_at && (
+                                                                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                                    {new Date(obs.created_at).toLocaleDateString(
+                                                                        'es-MX',
+                                                                        {
+                                                                            day: 'numeric',
+                                                                            month: 'short',
+                                                                            year: 'numeric',
+                                                                        },
+                                                                    )}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <a
+                                                            href={route('patients.observations.pdf', {
+                                                                id: auth.user.id,
+                                                                observacion: obs.id,
+                                                            })}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300"
+                                                        >
+                                                            Ver PDF
+                                                        </a>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {/* SECCIÓN 1: ESTADO ACTUAL */}
                             <div className="rounded-xl border border-gray-100 bg-white p-6 shadow dark:border-gray-700 dark:bg-gray-800">
                                 <div className="mb-6 flex items-center justify-between">
@@ -401,6 +566,17 @@ export default function Portal({
                                     )}
                                 </div>
 
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/50">
+                                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                        Ejemplo de orientación
+                                    </p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <BodyViewExample label="Frontal" view="front" />
+                                        <BodyViewExample label="Espalda" view="back" />
+                                        <BodyViewExample label="Lateral" view="side" />
+                                    </div>
+                                </div>
+
                                 <div>
                                     <input
                                         type="file"
@@ -500,18 +676,19 @@ export default function Portal({
                                 ) : (
                                     <>
                                         <div
-                                            className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900"
+                                            className="relative mx-auto max-w-[420px] overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm dark:border-gray-700 dark:bg-gray-900"
                                             onTouchStart={manejarInicioToque}
                                             onTouchEnd={manejarFinToque}
                                             onTouchCancel={() => setTouchStartX(null)}
                                         >
-                                            <div className="aspect-[4/5] w-full overflow-hidden">
+                                            <div className="aspect-[4/5] w-full overflow-hidden bg-white dark:bg-gray-950">
                                                 <img
                                                     key={fotoActual?.id ?? `${categoriaActiva}-${indiceCarrusel}`}
                                                     src={fotoActual?.photo_url}
                                                     alt={fotoActual?.notes || 'Progreso'}
-                                                    className="h-full w-full object-cover object-center transition-all duration-500 ease-out animate-[fadeIn_0.45s_ease]"
+                                                    className="h-full w-full cursor-zoom-in object-cover object-center transition-all duration-500 ease-out hover:scale-110 animate-[fadeIn_0.45s_ease]"
                                                     style={{ opacity: 1, transform: 'scale(1.01)', touchAction: 'pan-y' }}
+                                                    onClick={() => setLightboxIndex(fotosCategoriaActual.indexOf(fotoActual!))}
                                                 />
                                             </div>
 
@@ -554,16 +731,16 @@ export default function Portal({
                                                         setIndiceCarrusel(index);
                                                         setLightboxIndex(index);
                                                     }}
-                                                    className={`h-20 w-20 overflow-hidden rounded-lg border-2 bg-gray-100 transition ${
+                                                    className={`group h-16 w-16 overflow-hidden rounded-lg border-2 bg-gray-100 transition duration-300 ${
                                                         indiceCarrusel === index
                                                             ? 'border-blue-500'
-                                                            : 'border-transparent'
+                                                            : 'border-transparent hover:border-blue-200'
                                                     }`}
                                                 >
                                                     <img
                                                         src={pic.photo_url}
                                                         alt={pic.notes || 'Progreso'}
-                                                        className="h-full w-full object-cover"
+                                                        className="h-full w-full object-cover transition duration-300 group-hover:scale-110"
                                                     />
                                                 </button>
                                             ))}

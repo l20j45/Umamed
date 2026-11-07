@@ -63,7 +63,20 @@ test('no se puede cobrar un concepto del catálogo de otro doctor', function () 
     expect($cita->charges()->count())->toBe(0);
 });
 
-test('recepción puede cobrar cualquier cita', function () {
+test('un administrador puede cobrar cualquier cita', function () {
+    $doctora = usuarioConRol('bariatra');
+    $admin = usuarioConRol('admin');
+    $cita = agendarCita($doctora, null, '2026-11-12 16:00:00');
+    $item = concepto($doctora, 500);
+
+    $this->actingAs($admin)
+        ->post(route('agenda.cobro.store', $cita), ['catalog_item_id' => $item->id, 'cantidad' => 1])
+        ->assertSessionHasNoErrors();
+
+    expect($cita->fresh()->total())->toBe(500.0);
+});
+
+test('la recepción ya no puede cobrar ni ver cobros', function () {
     $doctora = usuarioConRol('bariatra');
     $recepcion = usuarioConRol('recepcionista');
     $cita = agendarCita($doctora, null, '2026-11-12 16:00:00');
@@ -71,9 +84,13 @@ test('recepción puede cobrar cualquier cita', function () {
 
     $this->actingAs($recepcion)
         ->post(route('agenda.cobro.store', $cita), ['catalog_item_id' => $item->id, 'cantidad' => 1])
-        ->assertSessionHasNoErrors();
+        ->assertForbidden();
 
-    expect($cita->fresh()->total())->toBe(500.0);
+    $this->actingAs($recepcion)
+        ->get(route('agenda.cobro', $cita))
+        ->assertForbidden();
+
+    expect($cita->fresh()->charges()->count())->toBe(0);
 });
 
 test('un paciente no puede entrar al cobro de una cita', function () {

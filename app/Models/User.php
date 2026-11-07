@@ -104,4 +104,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProgressPhoto::class);
     }
+
+    /**
+     * Relación: Un paciente tiene muchas observaciones creadas por el bariatra.
+     */
+    public function observaciones(): HasMany
+    {
+        return $this->hasMany(PacienteObservacion::class, 'user_id');
+    }
 }

@@ -33,11 +33,11 @@ export default function UpdateProfileInformation({
         <section className={className}>
             <header>
                 <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                    Informacion del perfil
+                    Información del perfil
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Actualiza tu nombre de usuario, y tu correo electronico
+                    Actualiza tu nombre y tu correo electrónico.
                 </p>
             </header>
 
@@ -77,20 +77,20 @@ export default function UpdateProfileInformation({
                 {mustVerifyEmail && user.email_verified_at === null && (
                     <div>
                         <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">
-                            Tu direccion de correo no ha sido verificada
+                            Tu dirección de correo no ha sido verificada.
                             <Link
                                 href={route('verification.send')}
                                 method="post"
                                 as="button"
                                 className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
                             >
-                                Click aqui para verificar tu correo
+                                Haz clic aquí para verificar tu correo
                             </Link>
                         </p>
 
                         {status === 'verification-link-sent' && (
                             <div className="mt-2 text-sm font-medium text-green-600 dark:text-green-400">
-                                Un nuevo correo se ha enviado para verificar tu correo
+                                Se ha enviado un nuevo correo para verificar tu dirección.
                             </div>
                         )}
                     </div>
@@ -107,7 +107,7 @@ export default function UpdateProfileInformation({
                         leaveTo="opacity-0"
                     >
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Saved.
+                            Guardado.
                         </p>
                     </Transition>
                 </div>
