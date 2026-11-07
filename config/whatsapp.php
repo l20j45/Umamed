@@ -86,6 +86,14 @@ return [
 
     'recordatorios' => [
         'activos' => (bool) env('WHATSAPP_RECORDATORIOS', env('WHATSAPP_DRIVER', 'log') === 'cloud'),
+
+        /*
+        | Los recordatorios por Web Push (notificación en el teléfono) no
+        | dependen de Meta: basta tener las llaves VAPID configuradas. Pónlo
+        | en false para apagar sólo el canal push.
+        */
+        'push_activos' => (bool) env('PUSH_RECORDATORIOS', true),
+
         'horas_antes' => (int) env('WHATSAPP_HORAS_ANTES', 24),
         'ventana_minutos' => 15,
     ],

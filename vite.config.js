@@ -21,6 +21,12 @@ export default defineConfig({
         VitePWA({
             registerType: 'autoUpdate', // Actualiza el Service Worker automáticamente
             injectRegister: 'inline',
+            // Los manejadores de push viven en public/sw-push.js y el SW generado
+            // los importa; así las notificaciones Web Push llegan aunque la app
+            // esté cerrada.
+            workbox: {
+                importScripts: ['sw-push.js'],
+            },
             manifest: {
                 name: 'Umamed · Seguimiento clínico',
                 short_name: 'Umamed',

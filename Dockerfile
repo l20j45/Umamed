@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-alpine AS base
+FROM php:8.5-fpm-alpine AS base
 
 # Dependencias del sistema
 RUN apk add --no-cache \
@@ -12,13 +12,18 @@ RUN apk add --no-cache \
     libpng-dev \
     libzip-dev \
     oniguruma-dev \
+    sqlite-dev \
     && docker-php-ext-install \
-        pdo_mysql \
+        pdo_sqlite \
         mbstring \
         zip \
         gd \
         pcntl \
         bcmath
+
+# El directorio de logs de supervisor no se crea solo en Alpine y supervisord
+# aborta sin él (ver supervisord.conf: logfile=/var/log/supervisor/…).
+RUN mkdir -p /var/log/supervisor
 
 # Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -34,9 +39,11 @@ COPY . .
 # Asegurar carpetas clave y el archivo de la base SQLite
 RUN mkdir -p storage bootstrap/cache && touch storage/app/umamed.sqlite
 
-# Instalación de dependencias
-RUN composer install --no-dev --optimize-autoloader --no-interaction \
-    && npm ci && npm run build \
+# Instalación de dependencias (pnpm: el repo ya no usa npm/package-lock)
+RUN npm i -g pnpm@12.16.0 \
+    && composer install --no-dev --optimize-autoloader --no-interaction \
+    && pnpm install --frozen-lockfile \
+    && pnpm run build \
     && rm -rf node_modules
 
 # Permisos correctos

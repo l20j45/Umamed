@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\UserCreated;
 use App\Models\User;
+use App\Support\NotificadorDePerfil;
 use Dompdf\Dompdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -144,6 +145,7 @@ class PatientController extends Controller
                 'medidas' => fn ($query) => $query->orderBy('created_at'),
                 'progressPhotos' => fn ($query) => $query->orderByDesc('taken_at'),
                 'observaciones' => fn ($query) => $query->orderByDesc('created_at'),
+                'documentosSeguimiento.subidoPor:id,name',
             ])
             ->findOrFail($id);
 
@@ -254,6 +256,9 @@ class PatientController extends Controller
         $validated['imc'] = round($validated['peso'] / ($estatura ** 2), 2);
 
         $patient->medidas()->create($validated);
+
+        // Avisa al paciente por push: algo nuevo se integró a su expediente.
+        NotificadorDePerfil::medición($patient);
 
         return redirect()
             ->route('patients.show', $patient->id)

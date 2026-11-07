@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentCharge;
 use App\Models\AppointmentPayment;
 use App\Models\CatalogItem;
+use App\Support\NotificadorDePerfil;
 use Dompdf\Dompdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -239,6 +240,14 @@ class AppointmentChargeController extends Controller
             'generado' => now(config('clinic.zona_horaria', 'UTC'))->format('d/m/Y H:i'),
             'usuario' => auth()->user()?->name,
         ])->render();
+
+        // Aviso al paciente: hay un recibo nuevo asociado a su cita.
+        if ($cita->paciente) {
+            NotificadorDePerfil::recibo(
+                $cita->paciente,
+                $cita->inicioLocal()->format('d/m/Y'),
+            );
+        }
 
         $dompdf = new Dompdf(['isRemoteEnabled' => false, 'defaultFont' => 'Helvetica']);
         $dompdf->loadHtml($html, 'UTF-8');

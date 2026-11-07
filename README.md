@@ -32,8 +32,8 @@ cp .env.example .env          # ajusta lo que necesites
 php artisan key:generate
 touch storage/app/umamed.sqlite   # base SQLite (una sola vez)
 php artisan migrate --seed
-npm install
-npm run build                 # o `npm run dev` mientras desarrollas
+pnpm install
+pnpm run build                 # o `pnpm run dev` mientras desarrollas
 php artisan serve
 ```
 
@@ -284,9 +284,12 @@ el cuerpo tenga exactamente tres variables antes de gastar la llamada.
 
 `php artisan citas:recordatorios` corre **cada 15 minutos** (definido en
 `routes/console.php`) y encola el aviso de las citas que empiezan dentro de la
-ventana configurada (24 h antes, con 15 minutos de margen). En Docker lo dispara
-el programa `laravel-scheduler` de `supervisord.conf`; fuera de Docker hace falta
-un cron que ejecute `php artisan schedule:run` cada minuto.
+ventana configurada (24 h antes, con 15 minutos de margen). El aviso va por
+WhatsApp cuando hay teléfono en el expediente y, además, como **notificación
+push al teléfono** (Web Push): eso no requiere credenciales de Meta, sólo las
+llaves VAPID configuradas. En Docker lo dispara el programa `laravel-scheduler`
+de `supervisord.conf`; fuera de Docker hace falta un cron que ejecute
+`php artisan schedule:run` cada minuto.
 
 El comando se puede probar a mano:
 
@@ -309,6 +312,46 @@ Si los desactiva, ni el proceso automático ni el botón manual le envían nada
 Si un job agota sus reintentos (por ejemplo un recordatorio rechazado por Meta),
 se registra en el log y, si `ADMIN_EMAIL` está configurado, se envía un correo
 con el trabajo, la cola y el error.
+
+## Seguimiento (documentos del staff)
+
+La bariatra o el administrador suben **PDFs al expediente fuera de la
+consulta** en la sección "Seguimiento" de `/pacientes/{id}`: menús o planes
+alimenticios, pedimentos de estudios y notas. **Sólo los menús exigen PDF**;
+pedimentos, notas u "otro" se entregan como comentario (sólo texto, sin
+archivo). El paciente los ve en `/mi-progreso` con el bloque "Seguimiento de
+tu doctora" — los con PDF se descargan; los de texto se muestran como
+"solo comentario" — y cada envío manda un aviso push (vía
+`NotificadorDePerfil`).
+
+Permiso para subir/borrar: `admin|bariatra`. La descarga (ruta
+`seguimiento.descargar`) la permite el staff o el propio paciente dueño de
+la tarjeta. Los PDFs viven en el disco `local/` carpeta `seguimiento/`
+(fuera del alcance del navegador); al borrar el registro se elimina el
+archivo ([`DocumentoSeguimiento`](app/Models/DocumentoSeguimiento.php)).
+
+## Notificaciones push
+
+Cada paciente puede activar en `/mis-citas` las notificaciones en su teléfono
+(Web Push estándar, con llaves VAPID `php artisan webpush:vapid`). Llegan:
+el aviso de la cita 24 h antes y los avisos del expediente — nueva medición
+(`storeMeasure`), notas nuevas o editadas en una cita (agenda) y recibo en PDF
+(`agenda.recibo`)— con `App\Support\NotificadorDePerfil`, que respeta el
+consentimiento (`recibir_recordatorios`) y sólo envía si hay suscripción viva.
+Requisitos de plataforma: **iOS necesita la PWA instalada** ("Agregar a la
+pantalla de inicio", iOS 16.4+); en Android funciona también desde Chrome. El
+push exige una conexión segura: en producción el `Dockerfile` ya sirve con
+nginx y HTTPS.
+
+Detalles operativos:
+
+- Las suscripciones viven en `push_subscriptions` (paquete
+  `laravel-notification-channels/webpush`); el registro se hace en el HTTP
+  `push/suscribir` (o DELETE) con sesión iniciada.
+- Si un endpoint deja de existir (el usuario desinstala la PWA), el canal
+  borra la suscripción automáticamente al fallar el envío.
+- El servicio worker maneja el evento `push` en `public/sw-push.js`, que el
+  SW de la PWA importa (ver `workbox.importScripts` en `vite.config.js`).
 
 ## Diseño
 
@@ -349,8 +392,9 @@ php artisan test          # suite completa (usa SQLite en memoria)
 ## Despliegue con Docker
 
 El `Dockerfile` construye una imagen con nginx + php-fpm + supervisor, dos workers
-de cola y el planificador de tareas. Los datos de entorno se toman de `.env`
-mediante `env_file` (el archivo `.env` nunca se copia dentro de la imagen, ver
+de cola y el planificador de tareas (PHP 8.5 en Alpine, imagen arm64). Los datos
+de entorno se toman del `.env` que esté **junto al docker-compose.yml** mediante
+`env_file` (el archivo `.env` nunca se copia dentro de la imagen, ver
 `.dockerignore`).
 
 ```bash
@@ -358,6 +402,19 @@ mediante `env_file` (el archivo `.env` nunca se copia dentro de la imagen, ver
 ./deploy.ps1       # Windows (podman)
 ./build-and-push.ps1   # construye y publica la imagen en Docker Hub
 ```
+
+### En el Raspberry Pi (arm64)
+
+Usa `.env.raspberry.example` como plantilla: copiada como `.env` junto al
+docker-compose y lista para llenar (APP_KEY, APP_URL, correo, llaves VAPID).
+La plantilla pone `DB_DATABASE=storage/app/umamed.sqlite` para que la base
+VIVA dentro del volumen `storage_dataUmamed`, y `SESSION_SECURE_COOKIE=false`
+mientras entres por http local — hazla **true** justo si expones la app por
+**Cloudflare Tunnel** (https real): en ese caso `APP_URL` es el dominio
+público, `SESSION_ENCRYPT` sigue en `false` (sesión en la base, no en el
+cookie) y el `TrustProxies` de `bootstrap/app.php` ya interpreta los
+`X-Forwarded-*` del túnel. Como producción general, el ejemplo sigue siendo
+`.env.production.example`.
 
 ### Configuración de producción
 

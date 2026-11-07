@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 use Spatie\Permission\Traits\HasRoles;
 
 #[ObservedBy(AuditObserver::class)]
 class User extends Authenticatable
 {
-    use HasFactory, HasRoles, Notifiable;
+    use HasFactory, HasPushSubscriptions, HasRoles, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -111,5 +112,14 @@ class User extends Authenticatable
     public function observaciones(): HasMany
     {
         return $this->hasMany(PacienteObservacion::class, 'user_id');
+    }
+
+    /**
+     * Relación: Documentos PDF de seguimiento (menús, pedimentos, notas).
+     */
+    public function documentosSeguimiento(): HasMany
+    {
+        return $this->hasMany(DocumentoSeguimiento::class)
+            ->orderByDesc('id');
     }
 }

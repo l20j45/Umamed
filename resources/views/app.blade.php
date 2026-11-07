@@ -7,6 +7,10 @@
         <meta name="theme-color" content="#243830">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+        @if (config('webpush.vapid.public_key'))
+            <meta name="vapid-public-key" content="{{ config('webpush.vapid.public_key') }}">
+        @endif
 
         <title inertia>{{ config('app.name', 'Umamed | Bariatría y Nutrición') }}</title>
 

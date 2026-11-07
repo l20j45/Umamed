@@ -1,5 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router } from '@inertiajs/react';
+import { activarPush, desactivarPush, pushDisponible } from '@/lib/push';
+import { useState } from 'react';
 
 type Estado = 'pendiente' | 'confirmada' | 'atendida' | 'cancelada' | 'no_asistio';
 
@@ -64,6 +66,27 @@ export default function MisCitas({ citas, recibir_recordatorios }: MisCitasProps
     const anteriores = citas.filter((cita) =>
         ['cancelada', 'atendida', 'no_asistio'].includes(cita.estado),
     );
+
+    const [estadoPush, setEstadoPush] = useState<NotificationPermission | 'no-disponible'>(
+        () => (!pushDisponible() ? 'no-disponible' : Notification.permission),
+    );
+    const [cargandoPush, setCargandoPush] = useState(false);
+
+    const alternarPush = async () => {
+        setCargandoPush(true);
+
+        try {
+            if (estadoPush === 'granted') {
+                await desactivarPush();
+                setEstadoPush('default');
+            } else {
+                const resultado = await activarPush();
+                setEstadoPush(resultado === 'error' ? 'denied' : resultado);
+            }
+        } finally {
+            setCargandoPush(false);
+        }
+    };
 
     return (
         <AuthenticatedLayout
@@ -143,6 +166,53 @@ export default function MisCitas({ citas, recibir_recordatorios }: MisCitasProps
                             />
                             Quiero recibir recordatorios por WhatsApp
                         </label>
+                    </section>
+
+                    <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                            Notificaciones en tu teléfono
+                        </h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Un aviso llega al teléfono 24 horas antes de cada cita y
+                            cuando la clínica registra algo nuevo en tu expediente
+                            (medición, notas o recibo). En iPhone se necesita la app
+                            instalada desde "Agregar a la pantalla de inicio"; en Android
+                            también funciona desde Chrome.
+                        </p>
+                        {estadoPush === 'no-disponible' ? (
+                            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                                Este navegador no soporta notificaciones push o no se está
+                                viendo con una conexión segura.
+                            </p>
+                        ) : estadoPush === 'denied' ? (
+                            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                            Las notificaciones están bloqueadas. Actívalas para este
+                            sitio en la configuración del navegador.
+                            </p>
+                        ) : estadoPush === 'granted' ? (
+                            <>
+                                <p className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                                    Notificaciones activadas.
+                                </p>
+                                <button
+                                    type="button"
+                                    disabled={cargandoPush}
+                                    onClick={alternarPush}
+                                    className="mt-2 text-sm text-gray-500 underline hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                    Desactivarlas
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                type="button"
+                                disabled={cargandoPush}
+                                onClick={alternarPush}
+                                className="mt-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                            >
+                                {cargandoPush ? 'Activando...' : 'Activar notificaciones'}
+                            </button>
+                        )}
                     </section>
 
                     {anteriores.length > 0 && (

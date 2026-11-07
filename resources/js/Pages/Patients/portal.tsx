@@ -51,6 +51,16 @@ interface ObservacionDoctor {
     creador?: string | null;
 }
 
+interface DocumentoSeguimiento {
+    id: number;
+    titulo: string;
+    categoria_legible: string;
+    notas: string | null;
+    tiene_pdf: boolean;
+    fecha: string;
+    descarga_url: string;
+}
+
 interface PortalProps {
     auth: { user: { id: number; name: string } };
     has_data: boolean;
@@ -61,6 +71,7 @@ interface PortalProps {
     } | null;
     photos: PhotoItem[];
     observaciones?: ObservacionDoctor[];
+    documentos?: DocumentoSeguimiento[];
 }
 
 function BodyViewExample({ label, view }: { label: string; view: 'front' | 'back' | 'side' }) {
@@ -115,6 +126,7 @@ export default function Portal({
     data,
     photos = [],
     observaciones = [],
+    documentos = [],
 }: PortalProps) {
 
     const [removingId, setRemovingId] = useState<number | null>(null);
@@ -790,6 +802,51 @@ export default function Portal({
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    )}
+
+                    {documentos.length > 0 && (
+                        <div className="bg-white dark:bg-gray-800 shadow rounded-xl p-6 border border-gray-100 dark:border-gray-700">
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4">
+                                Seguimiento de tu doctora
+                            </h3>
+                            <ul className="space-y-3">
+                                {documentos.map((documento) => (
+                                    <li
+                                        key={documento.id}
+                                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/20"
+                                    >
+                                        <div>
+                                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                {documento.categoria_legible}
+                                            </span>
+                                            <span className="ml-2 text-sm font-bold text-gray-900 dark:text-gray-100">
+                                                {documento.titulo}
+                                            </span>
+                                            <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                                {documento.fecha}
+                                            </span>
+                                            {documento.notas && (
+                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                    {documento.notas}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {documento.tiene_pdf ? (
+                                            <a
+                                                href={documento.descarga_url}
+                                                className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                                            >
+                                                Descargar PDF
+                                            </a>
+                                        ) : (
+                                            <span className="rounded-full border border-gray-200 px-2.5 py-0.5 text-[11px] font-semibold text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                                                Solo comentario
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
                     )}
                 </div>

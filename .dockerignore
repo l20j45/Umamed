@@ -30,4 +30,3 @@ tests
 phpunit.xml
 .prettierrc
 .eslintrc.json
-tsconfig.json

@@ -4,6 +4,7 @@ import './bootstrap';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
+import { activarPushSiYaAutorizado } from './lib/push';
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     import('virtual:pwa-register')
@@ -28,6 +29,16 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(<App {...props} />);
+
+        if (
+            import.meta.env.PROD &&
+            (props as { initialPage: { props: { auth: { user: unknown } } } }).initialPage
+                .props.auth.user
+        ) {
+            // Si la PWA ya tiene permiso de notificaciones de una visita
+            // anterior, re-registra la suscripción para que siga viva.
+            void activarPushSiYaAutorizado();
+        }
     },
     progress: {
         color: '#4B5563',

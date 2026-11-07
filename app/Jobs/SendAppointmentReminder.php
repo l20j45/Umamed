@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Appointment;
+use App\Notifications\RecordatorioCitaPush;
 use App\Services\WhatsAppService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -35,20 +36,30 @@ class SendAppointmentReminder implements ShouldQueue
             return;
         }
 
-        $telefono = $cita->paciente?->phone;
+        $paciente = $cita->paciente;
 
-        if (blank($telefono)) {
+        if (! $paciente || ! $paciente->recibir_recordatorios) {
             return;
         }
 
-        // El paciente puede haber pedido no recibir recordatorios.
-        if ($cita->paciente && ! $cita->paciente->recibir_recordatorios) {
-            return;
+        $enviado = false;
+
+        // WhatsApp: sólo si el expediente tiene teléfono registrado.
+        if (filled($paciente->phone)) {
+            $whatsapp->enviar($paciente->phone, $cita->mensaje('recordatorio'), $cita->parametrosPlantilla());
+            $enviado = true;
         }
 
-        $whatsapp->enviar($telefono, $cita->mensaje('recordatorio'), $cita->parametrosPlantilla());
+        // Web Push: avisa en el teléfono aunque no haya número en el expediente
+        // (una suscripción viva del navegador es suficiente).
+        if ($paciente->pushSubscriptions()->exists()) {
+            $paciente->notify(new RecordatorioCitaPush($cita));
+            $enviado = true;
+        }
 
-        $cita->forceFill(['recordatorio_enviado_en' => now()])->save();
+        if ($enviado) {
+            $cita->forceFill(['recordatorio_enviado_en' => now()])->save();
+        }
     }
 
     public function failed(?Throwable $e): void

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentoSeguimiento;
 use App\Models\ProgressPhoto;
 use App\Support\OptimizadorDeFotos;
 use Illuminate\Http\RedirectResponse;
@@ -53,11 +54,28 @@ class ProgressPhotoController extends Controller
             ])
             ->values();
 
+        $documentos = $user->documentosSeguimiento()
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (DocumentoSeguimiento $documento): array => [
+                'id' => $documento->id,
+                'titulo' => $documento->titulo,
+                'categoria_legible' => $documento->categoriaLegible(),
+                'notas' => $documento->notas,
+                'tiene_pdf' => $documento->tiene_pdf,
+                'fecha' => $documento->created_at?->copy()
+                    ->timezone((string) config('clinic.zona_horaria', 'UTC'))
+                    ->format('d/m/Y'),
+                'descarga_url' => route('seguimiento.descargar', $documento),
+            ])
+            ->values();
+
         return Inertia::render('Patients/portal', [
             'has_data' => $measures->isNotEmpty(),
             'data' => $this->buildMeasuresPayload($measures),
             'photos' => $photos,
             'observaciones' => $observaciones,
+            'documentos' => $documentos,
         ]);
     }
 

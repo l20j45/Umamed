@@ -1,0 +1,7 @@
+# Necesario en un proyecto Vite: algunas dep transitivas (p.ej. workbox-window
+# de vite-plugin-pwa) se resuelven en runtime y no se ven sin hoisting.
+shamefullyHoist: true
+# Builds de dependencias aprobados (sintaxis pnpm >= 11; antes era
+# onlyBuiltDependencies, removida en pnpm 12).
+allowBuilds:
+  esbuild: true

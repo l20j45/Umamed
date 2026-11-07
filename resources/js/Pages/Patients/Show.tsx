@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Avatar from '@/Components/Avatar';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 interface Medida {
@@ -37,6 +37,24 @@ interface PacienteObservacion {
     } | null;
 }
 
+interface DocumentoSeguimiento {
+    id: number;
+    titulo: string;
+    categoria: string;
+    notas?: string | null;
+    tiene_pdf?: boolean;
+    created_at: string;
+    subido_por?: { name: string } | null;
+}
+
+const CATEGORIAS_SEGUIMIENTO: Record<string, string> = {
+    menu: 'Menú / plan alimenticio',
+    pedimento: 'Pedimento de estudios',
+    nota: 'Nota o instrucciones',
+    otro: 'Otro documento',
+};
+
+
 interface ShowProps {
     auth?: {
         user: any;
@@ -49,6 +67,7 @@ interface ShowProps {
         medidas: Medida[];
         progress_photos?: ProgressPhoto[]; // Relación con sus fotos de evolución
         observaciones?: PacienteObservacion[];
+        documentosSeguimiento?: DocumentoSeguimiento[];
         email?: string;
         phone?: string;
         estatura?: string | number | null;
@@ -83,6 +102,54 @@ export default function Show({ patient }: ShowProps) {
         recomendaciones: '',
         formato: 'estandar',
     });
+
+    // --- SEGUIMIENTO: documentos PDF que el staff sube entre consultas ---
+    const rolesActuales = (
+        ((usePage().props as unknown as { auth?: { user?: { roles?: string[] } } })
+            .auth?.user?.roles) ?? []
+    ) as string[];
+    const puedeGestionarSeguimiento = rolesActuales.includes('admin')
+        || rolesActuales.includes('bariatra');
+
+    const documentoForm = useForm({
+        titulo: '',
+        categoria: 'menu',
+        notas: '',
+        pdf: null as File | null,
+    });
+
+    // Sólo el menú alimenticio exige PDF; los demás tipos son comentario.
+    const exigePdfs = documentoForm.data.categoria === 'menu';
+
+    const guardarDocumento = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        documentoForm.post(route('patients.seguimiento.store', patient.id), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () =>
+                documentoForm.reset('titulo', 'categoria', 'notas', 'pdf'),
+        });
+    };
+
+    const eliminarDocumento = (documento: DocumentoSeguimiento) => {
+        if (
+            !window.confirm(
+                '¿Eliminar este documento del expediente? No se puede deshacer.',
+            )
+        ) {
+            return;
+        }
+
+        router.delete(
+            route('patients.seguimiento.destroy', {
+                id: patient.id,
+                documento: documento.id,
+            }),
+            { preserveScroll: true },
+        );
+    };
+
 
     const guardarEstatura = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -902,6 +969,234 @@ export default function Show({ patient }: ShowProps) {
                                                 );
                                             })}
                                     </div>
+                                )}
+                            </div>
+
+                            {/* SEGUIMIENTO: MENÚS, PEDIMENTOS Y NOTAS EN PDF */}
+                            <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <h3 className="mb-4 border-b border-gray-200 pb-2 text-lg font-bold text-emerald-600 dark:border-gray-700 dark:text-emerald-400">
+                                    Seguimiento (documentos del consultorio)
+                                </h3>
+
+                                {puedeGestionarSeguimiento && (
+                                    <form
+                                        onSubmit={guardarDocumento}
+                                        className="mb-5 rounded-lg border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/20"
+                                    >
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                            <div>
+                                                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Título
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    maxLength={120}
+                                                    placeholder="Menú de septiembre"
+                                                    value={documentoForm.data.titulo}
+                                                    onChange={(e) =>
+                                                        documentoForm.setData(
+                                                            'titulo',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="w-full rounded border-gray-300 bg-white text-sm text-gray-900 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                                />
+                                                {documentoForm.errors.titulo && (
+                                                    <span className="mt-1 block text-xs text-red-500">
+                                                        {documentoForm.errors.titulo}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Tipo de documento
+                                                </label>
+                                                <select
+                                                    value={documentoForm.data.categoria}
+                                                    onChange={(e) =>
+                                                        documentoForm.setData(
+                                                            'categoria',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="w-full rounded border-gray-300 bg-white text-sm text-gray-900 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                                >
+                                                    {Object.entries(CATEGORIAS_SEGUIMIENTO).map(
+                                                        ([valor, texto]) => (
+                                                            <option key={valor} value={valor}>
+                                                                {texto}
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </select>
+                                            </div>
+                                            {exigePdfs ? (
+                                                <div>
+                                                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        Archivo PDF
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        accept="application/pdf"
+                                                        required
+                                                        onChange={(e) =>
+                                                            documentoForm.setData(
+                                                                'pdf',
+                                                                e.target.files?.[0] ?? null,
+                                                            )
+                                                        }
+                                                        className="w-full rounded border-gray-300 bg-white text-xs text-gray-900 file:mr-2 file:rounded file:border-0 file:bg-emerald-600 file:px-2 file:py-1 file:text-xs file:font-semibold file:text-white dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                                    />
+                                                    {documentoForm.errors.pdf && (
+                                                        <span className="mt-1 block text-xs text-red-500">
+                                                            {documentoForm.errors.pdf}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-end">
+                                                    <span className="w-full rounded border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                                                        Sin archivo: la nota se
+                                                        entrega como comentario.
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                            <div className="sm:col-span-2">
+                                                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    {exigePdfs
+                                                        ? 'Notas para el paciente (opcional)'
+                                                        : 'Comentario para el paciente'}
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required={!exigePdfs}
+                                                    maxLength={500}
+                                                    placeholder={
+                                                        exigePdfs
+                                                            ? 'Instrucciones breves del documento…'
+                                                            : 'Ej.: continuar menú 3, repetir biometría en 15 días…'
+                                                    }
+                                                    value={documentoForm.data.notas}
+                                                    onChange={(e) =>
+                                                        documentoForm.setData(
+                                                            'notas',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="w-full rounded border-gray-300 bg-white text-sm text-gray-900 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                                />
+                                                {documentoForm.errors.notas && (
+                                                    <span className="mt-1 block text-xs text-red-500">
+                                                        {documentoForm.errors.notas}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {exigePdfs ? (
+                                                <div className="flex items-end">
+                                                    <button
+                                                        type="submit"
+                                                        disabled={documentoForm.processing}
+                                                        className="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                                                    >
+                                                        {documentoForm.processing
+                                                            ? 'Subiendo…'
+                                                            : 'Subir documento'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    type="submit"
+                                                    disabled={documentoForm.processing}
+                                                    className="mt-5 w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50 sm:mt-0"
+                                                >
+                                                    {documentoForm.processing
+                                                        ? 'Guardando…'
+                                                        : 'Enviar nota'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </form>
+                                )}
+
+                                {(patient.documentosSeguimiento ?? []).length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-gray-200 py-6 text-center dark:border-gray-700">
+                                        <p className="text-sm text-gray-400">
+                                            Sin documentos de seguimiento todavía. Aquí
+                                            van los menús, pedimentos de estudios y notas
+                                            que se comparten entre consultas.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <ul className="space-y-3">
+                                        {(patient.documentosSeguimiento ?? []).map(
+                                            (documento) => (
+                                                <li
+                                                    key={documento.id}
+                                                    className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/20"
+                                                >
+                                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                                        <div>
+                                                            <span className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                                {
+                                                                    CATEGORIAS_SEGUIMIENTO[
+                                                                        documento.categoria
+                                                                    ] ?? documento.categoria
+                                                                }
+                                                            </span>
+                                                            <span className="ml-2 text-sm font-bold text-gray-800 dark:text-gray-100">
+                                                                {documento.titulo}
+                                                            </span>
+                                                            <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                                                {new Date(
+                                                                    documento.created_at,
+                                                                ).toLocaleDateString('es-MX')}
+                                                            </span>
+                                                            {documento.subido_por && (
+                                                                <span className="ml-2 text-xs text-gray-400">
+                                                                    por{' '}
+                                                                    {documento.subido_por.name}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex space-x-2">
+                                                            {documento.tiene_pdf !== false && (
+                                                                <a
+                                                                    href={route(
+                                                                        'seguimiento.descargar',
+                                                                        documento.id,
+                                                                    )}
+                                                                    className="rounded border border-gray-300 px-2 py-0.5 text-xs font-medium text-gray-600 transition hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                                                >
+                                                                    Descargar PDF
+                                                                </a>
+                                                            )}
+                                                            {puedeGestionarSeguimiento && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        eliminarDocumento(
+                                                                            documento,
+                                                                        )
+                                                                    }
+                                                                    className="rounded border border-red-200 px-2 py-0.5 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:border-red-800 dark:text-red-400"
+                                                                >
+                                                                    Eliminar
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {documento.notas && (
+                                                        <div className="mt-2 rounded border border-gray-200 bg-white p-2.5 text-xs italic text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                                                            {documento.notas}
+                                                        </div>
+                                                    )}
+                                                </li>
+                                            ),
+                                        )}
+                                    </ul>
                                 )}
                             </div>
                         </div>

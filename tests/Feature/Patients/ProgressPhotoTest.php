@@ -31,6 +31,7 @@ test('la foto se guarda como JPEG sin metadatos EXIF y con la orientación corre
         ->post(route('patient.photos.store'), [
             'photo' => $archivo,
             'taken_at' => '2026-10-20',
+            'categoria' => 'frente',
         ])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
@@ -62,6 +63,7 @@ test('una foto grande se reduce al lado máximo configurado', function () {
         ->post(route('patient.photos.store'), [
             'photo' => UploadedFile::fake()->image('grande.jpg', 2000, 1200),
             'taken_at' => '2026-10-21',
+            'categoria' => 'espalda',
         ])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
@@ -80,6 +82,7 @@ test('un PNG también se guarda como JPEG', function () {
         ->post(route('patient.photos.store'), [
             'photo' => UploadedFile::fake()->image('foto.png', 800, 600),
             'taken_at' => '2026-10-22',
+            'categoria' => 'lateral_derecha',
         ])
         ->assertSessionHasNoErrors();
 

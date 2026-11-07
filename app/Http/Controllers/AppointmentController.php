@@ -7,6 +7,7 @@ use App\Jobs\SendAppointmentReminder;
 use App\Models\Appointment;
 use App\Models\User;
 use App\Services\WhatsAppService;
+use App\Support\NotificadorDePerfil;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -112,6 +113,14 @@ class AppointmentController extends Controller
             return Appointment::create($datos);
         });
 
+        if (filled($cita->notas) && $cita->paciente) {
+            NotificadorDePerfil::nota(
+                $cita->paciente,
+                $cita->inicioLocal()->format('d/m/Y'),
+                $cita->inicioLocal()->format('H:i'),
+            );
+        }
+
         return back()->with(
             'success',
             'Cita agendada para el '.$cita->inicioLocal()->format('d/m/Y').' a las '.$cita->inicioLocal()->format('H:i').'.'
@@ -121,6 +130,8 @@ class AppointmentController extends Controller
     public function update(SaveAppointmentRequest $request, Appointment $cita): RedirectResponse
     {
         $this->authorize('update', $cita);
+
+        $notasAnteriores = $cita->notas;
 
         DB::transaction(function () use ($request, $cita) {
             $datos = $this->conFechasUtc($request->validated());
@@ -139,7 +150,22 @@ class AppointmentController extends Controller
             }
 
             $cita->update($datos);
+
+            return $cita;
         });
+
+        // Notificar sólo cuando la nota es nueva o cambió (no cualquier editado).
+        if (
+            filled($cita->notas)
+            && $cita->notas !== $notasAnteriores
+            && $cita->paciente
+        ) {
+            NotificadorDePerfil::nota(
+                $cita->paciente,
+                $cita->inicioLocal()->format('d/m/Y'),
+                $cita->inicioLocal()->format('H:i'),
+            );
+        }
 
         return back()->with('success', 'Cita actualizada.');
     }

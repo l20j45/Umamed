@@ -18,11 +18,14 @@ class EnviarRecordatoriosDeCitas extends Command
     /**
      * @var string
      */
-    protected $description = 'Encola los recordatorios de WhatsApp de las citas próximas';
+    protected $description = 'Encola los recordatorios (WhatsApp y Web Push) de las citas próximas';
 
     public function handle(): int
     {
-        if (! config('whatsapp.recordatorios.activos')) {
+        $whatsapp = (bool) config('whatsapp.recordatorios.activos');
+        $push = (bool) config('whatsapp.recordatorios.push_activos');
+
+        if (! $whatsapp && ! $push) {
             $this->components->warn(
                 'Los recordatorios automáticos están apagados. Configura WHATSAPP_DRIVER=cloud con sus credenciales o pon WHATSAPP_RECORDATORIOS=true.'
             );

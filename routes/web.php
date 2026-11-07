@@ -9,12 +9,21 @@ use App\Http\Controllers\IngresosController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProgressPhotoController;
+use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\SeguimientoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('welcome');
+
+Route::middleware('auth')->group(function () {
+    // Web Push: el navegador registra (o borra) su suscripción al entrar y
+    // cuando el usuario desactiva las notificaciones desde la interfaz.
+    Route::post('push/suscribir', [PushSubscriptionController::class, 'store'])->name('push.suscribir');
+    Route::delete('push/suscribir', [PushSubscriptionController::class, 'destroy'])->name('push.eliminar');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // El dashboard lista los pacientes; a un paciente se le redirige al portal.
@@ -33,6 +42,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/pacientes/{id}/medidas/{medida}', [PatientController::class, 'destroyMeasure'])->name('patients.measures.destroy');
         Route::post('/pacientes/{id}/observaciones', [PatientController::class, 'storeObservation'])->name('patients.observations.store');
         Route::delete('/pacientes/{id}/observaciones/{observacion}', [PatientController::class, 'destroyObservation'])->name('patients.observations.destroy');
+
+        // Documentos de seguimiento (menús, pedimentos, notas en PDF).
+        Route::post('/pacientes/{id}/seguimiento', [SeguimientoController::class, 'store'])->name('patients.seguimiento.store');
+        Route::delete('/pacientes/{id}/seguimiento/{documento}', [SeguimientoController::class, 'destroy'])->name('patients.seguimiento.destroy');
     });
 
     // El PDF de un seguimiento también lo descarga el propio paciente desde
@@ -40,6 +53,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:bariatra|paciente')->group(function () {
         Route::get('/pacientes/{id}/observaciones/{observacion}/pdf', [PatientController::class, 'exportarObservacion'])->name('patients.observations.pdf');
     });
+});
+
+// La descarga la hace el staff o el propio paciente dueño del documento;
+// SeguimientoController::descargar valida ambos casos.
+Route::middleware('auth')->group(function () {
+    Route::get('/seguimiento/{documento}/descargar', [SeguimientoController::class, 'descargar'])->name('seguimiento.descargar');
 });
 
 Route::middleware(['auth', 'role:admin|recepcionista'])->group(function () {
